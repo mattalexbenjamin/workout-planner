@@ -286,6 +286,13 @@
           <small class="form-help">Create a client ID in the <a href="https://console.cloud.google.com" target="_blank" rel="noopener">Google Cloud Console</a>. Be sure to authorize both <strong>Calendar</strong> and <strong>Drive</strong> scopes.</small>
         </div>
 
+        <div class="form-group" id="settings-calendar-select-group" style="display: none;">
+          <label for="gcal-calendar-select">Workout Source Calendar</label>
+          <select id="gcal-calendar-select" class="form-input">
+            <option value="primary">Primary Calendar</option>
+          </select>
+        </div>
+
         <div class="settings-actions">
           <button id="btn-save-gcal" class="btn btn-secondary">Save Client ID</button>
           <button id="btn-login-gcal" class="btn btn-primary">Sign in with Google</button>

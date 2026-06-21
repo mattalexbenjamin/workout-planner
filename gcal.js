@@ -85,8 +85,7 @@ const APEX_GCAL = {
     ];
   },
 
-  // Load Events from API or Mock
-  loadCalendarEvents(startDateStr, endDateStr, onSuccessCallback, onErrorCallback) {
+  loadCalendarEvents(calendarId, startDateStr, endDateStr, onSuccessCallback, onErrorCallback) {
     if (this.isMockEnabled) {
       console.log("Loading mock calendar events...");
       const mockEvents = this.getMockEvents();
@@ -111,7 +110,8 @@ const APEX_GCAL = {
 
     const startISO = new Date(startDateStr + 'T00:00:00').toISOString();
     const endISO = new Date(endDateStr + 'T23:59:59').toISOString();
-    const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(startISO)}&timeMax=${encodeURIComponent(endISO)}&singleEvents=true&orderBy=startTime`;
+    const targetCalId = encodeURIComponent(calendarId || "primary");
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${targetCalId}/events?timeMin=${encodeURIComponent(startISO)}&timeMax=${encodeURIComponent(endISO)}&singleEvents=true&orderBy=startTime`;
 
     fetch(url, {
       headers: {
@@ -280,6 +280,30 @@ const APEX_GCAL = {
     })
     .catch(err => {
       console.error("GDrive Upload Error:", err);
+      if (onError) onError(err.message);
+    });
+  },
+
+  loadCalendarList(onSuccess, onError) {
+    if (!this.accessToken) {
+      if (onError) onError("No access token.");
+      return;
+    }
+    const url = "https://www.googleapis.com/calendar/v3/users/me/calendarList";
+    fetch(url, {
+      headers: {
+        "Authorization": `Bearer ${this.accessToken}`
+      }
+    })
+    .then(res => {
+      if (!res.ok) throw new Error("Failed to fetch calendars: " + res.statusText);
+      return res.json();
+    })
+    .then(data => {
+      onSuccess(data.items || []);
+    })
+    .catch(err => {
+      console.error("Calendar list fetch error:", err);
       if (onError) onError(err.message);
     });
   }

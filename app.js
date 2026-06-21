@@ -16,7 +16,8 @@ const APEX_APP = {
     },
     loggedWorkouts: [],
     calendarEvents: [],
-    syncing: false
+    syncing: false,
+    selectedCalendarId: localStorage.getItem("apex_gcal_calendar_id") || "primary"
   },
 
   // Initialize App
@@ -26,6 +27,7 @@ const APEX_APP = {
     this.syncCalendarData();
     this.updateActiveTabUI();
     this.updateDriveStatusUI();
+    this.fetchAndRenderCalendarList();
     this.render();
 
     // Silent background sync on start if token exists
@@ -107,6 +109,7 @@ const APEX_APP = {
     const weekRange = this.getWeekStartAndEndDates(this.state.currentWeekOffset);
     
     APEX_GCAL.loadCalendarEvents(
+      this.state.selectedCalendarId || "primary",
       weekRange.startStr, 
       weekRange.endStr,
       (events) => {
@@ -178,6 +181,7 @@ const APEX_APP = {
         (token) => {
           this.syncCalendarData();
           this.updateDriveStatusUI();
+          this.fetchAndRenderCalendarList();
           setTimeout(() => this.syncWithGDrive(false), 1000);
         },
         (error) => {
@@ -190,9 +194,20 @@ const APEX_APP = {
     document.getElementById("btn-logout-gcal").addEventListener("click", () => {
       APEX_GCAL.logout();
       this.state.lastDriveSync = null;
+      this.state.selectedCalendarId = "primary";
       localStorage.removeItem("apex_last_drive_sync");
+      localStorage.removeItem("apex_gcal_calendar_id");
+      const selectGroup = document.getElementById("settings-calendar-select-group");
+      if (selectGroup) selectGroup.style.display = "none";
       this.syncCalendarData();
       this.updateDriveStatusUI();
+    });
+
+    // Settings: Calendar Select Change
+    document.getElementById("gcal-calendar-select").addEventListener("change", (e) => {
+      this.state.selectedCalendarId = e.target.value;
+      localStorage.setItem("apex_gcal_calendar_id", this.state.selectedCalendarId);
+      this.syncCalendarData();
     });
 
     // Settings: Manual Drive Sync
@@ -1128,6 +1143,39 @@ const APEX_APP = {
       text.innerText = "Cloud Off";
       if (syncBtn) syncBtn.classList.add("disabled");
     }
+  },
+
+  fetchAndRenderCalendarList() {
+    if (APEX_GCAL.isMockEnabled || !APEX_GCAL.accessToken) {
+      const selectGroup = document.getElementById("settings-calendar-select-group");
+      if (selectGroup) selectGroup.style.display = "none";
+      return;
+    }
+    
+    APEX_GCAL.loadCalendarList(
+      (calendars) => {
+        const select = document.getElementById("gcal-calendar-select");
+        const selectGroup = document.getElementById("settings-calendar-select-group");
+        if (!select || !selectGroup) return;
+        
+        select.innerHTML = "";
+        
+        calendars.forEach(cal => {
+          const opt = document.createElement("option");
+          opt.value = cal.id;
+          opt.innerText = cal.summary + (cal.primary ? " (Primary)" : "");
+          if (cal.id === this.state.selectedCalendarId) {
+            opt.selected = true;
+          }
+          select.appendChild(opt);
+        });
+        
+        selectGroup.style.display = "block";
+      },
+      (err) => {
+        console.warn("Failed to load calendar list:", err);
+      }
+    );
   }
 };
 
