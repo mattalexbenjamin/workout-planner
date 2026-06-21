@@ -18,7 +18,11 @@ const APEX_APP = {
     deletedLogs: [], // Tombstone list for workout deletions
     calendarEvents: [],
     syncing: false,
-    selectedCalendarId: localStorage.getItem("apex_gcal_calendar_id") || "primary"
+    selectedCalendarId: localStorage.getItem("apex_gcal_calendar_id") || "primary",
+    aiProvider: "gemini",
+    geminiApiKey: "",
+    openaiApiKey: "",
+    aiWorkout: null
   },
 
   // Initialize App
@@ -101,6 +105,16 @@ const APEX_APP = {
     document.getElementById("goal-calories").value = this.state.goals.calories;
     document.getElementById("goal-protein").value = this.state.goals.protein;
     document.getElementById("goal-frequency").value = this.state.goals.frequency;
+
+    // Load AI Coach Settings
+    this.state.aiProvider = localStorage.getItem("apex_ai_provider") || "gemini";
+    this.state.geminiApiKey = localStorage.getItem("apex_gemini_api_key") || "";
+    this.state.openaiApiKey = localStorage.getItem("apex_openai_api_key") || "";
+    
+    document.getElementById("ai-provider-select").value = this.state.aiProvider;
+    document.getElementById("gemini-api-key").value = this.state.geminiApiKey;
+    document.getElementById("openai-api-key").value = this.state.openaiApiKey;
+    this.updateAIConfigUI();
   },
 
   saveGoalsToStorage() {
@@ -215,6 +229,67 @@ const APEX_APP = {
       this.updateDriveStatusUI();
     });
 
+    // Settings: AI Provider Select Change
+    document.getElementById("ai-provider-select").addEventListener("change", () => {
+      this.updateAIConfigUI();
+    });
+
+    // Settings: Toggle Password Visibility
+    const toggleVisible = (inputId, btnId) => {
+      const input = document.getElementById(inputId);
+      const btn = document.getElementById(btnId);
+      if (input && btn) {
+        btn.addEventListener("click", () => {
+          if (input.type === "password") {
+            input.type = "text";
+            btn.innerText = "🙈";
+          } else {
+            input.type = "password";
+            btn.innerText = "👁️";
+          }
+        });
+      }
+    };
+    toggleVisible("gemini-api-key", "btn-toggle-gemini-key");
+    toggleVisible("openai-api-key", "btn-toggle-openai-key");
+
+    // Settings: Save AI Config
+    document.getElementById("btn-save-ai-settings").addEventListener("click", () => {
+      const provider = document.getElementById("ai-provider-select").value;
+      const geminiKey = document.getElementById("gemini-api-key").value.trim();
+      const openaiKey = document.getElementById("openai-api-key").value.trim();
+
+      this.state.aiProvider = provider;
+      this.state.geminiApiKey = geminiKey;
+      this.state.openaiApiKey = openaiKey;
+
+      localStorage.setItem("apex_ai_provider", provider);
+      localStorage.setItem("apex_gemini_api_key", geminiKey);
+      localStorage.setItem("apex_openai_api_key", openaiKey);
+
+      alert("AI settings saved successfully.");
+      this.updateAIConfigUI();
+      this.renderTodayTab(); // Refresh Today tab to show/hide AI buttons
+    });
+
+    // Settings: Clear AI Config
+    document.getElementById("btn-clear-ai-settings").addEventListener("click", () => {
+      if (confirm("Clear all saved AI API keys?")) {
+        this.state.geminiApiKey = "";
+        this.state.openaiApiKey = "";
+        
+        document.getElementById("gemini-api-key").value = "";
+        document.getElementById("openai-api-key").value = "";
+        
+        localStorage.removeItem("apex_gemini_api_key");
+        localStorage.removeItem("apex_openai_api_key");
+
+        alert("API keys cleared.");
+        this.updateAIConfigUI();
+        this.renderTodayTab();
+      }
+    });
+
     // Settings: Calendar Select Change
     document.getElementById("gcal-calendar-select").addEventListener("change", (e) => {
       this.state.selectedCalendarId = e.target.value;
@@ -316,8 +391,89 @@ const APEX_APP = {
       });
     });
 
+    // Today: Generate AI Workout
+    document.getElementById("btn-generate-ai-workout").addEventListener("click", () => {
+      const activeKey = this.state.aiProvider === "gemini" ? this.state.geminiApiKey : this.state.openaiApiKey;
+      if (!activeKey) {
+        alert("Please configure your API Key in Settings first.");
+        return;
+      }
+
+      // Show loader
+      const spinner = document.getElementById("ai-loading-spinner");
+      const generateBtn = document.getElementById("btn-generate-ai-workout");
+      const revertBtn = document.getElementById("btn-revert-to-local");
+      const startBtn = document.getElementById("btn-start-workout");
+      const detailsBox = document.getElementById("recommendation-details");
+
+      spinner.classList.remove("hidden");
+      generateBtn.classList.add("hidden");
+      revertBtn.classList.add("hidden");
+      startBtn.classList.add("hidden");
+      detailsBox.classList.add("hidden");
+
+      // Build context
+      const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      const dayOfWeek = days[new Date(this.state.currentDateStr + 'T00:00:00').getDay()];
+      
+      const context = {
+        dateStr: this.state.currentDateStr,
+        dayOfWeek: dayOfWeek,
+        soreness: APEX_RECOMMENDER.calculateSoreness(this.state.currentDateStr, this.state.loggedWorkouts),
+        todayEvents: this.state.calendarEvents.filter(e => e.date === this.state.currentDateStr),
+        tomorrowEvents: this.state.calendarEvents.filter(e => e.date === APEX_RECOMMENDER.addDays(this.state.currentDateStr, 1)),
+        recentHistory: this.state.loggedWorkouts.slice(0, 5),
+        goals: this.state.goals,
+        workoutTemplates: ATHLETIC_WORKOUTS
+      };
+
+      APEX_AI.generateWorkout(
+        this.state.aiProvider,
+        activeKey,
+        context,
+        (workout) => {
+          spinner.classList.add("hidden");
+          // Add temporary id so openWorkoutModal works
+          workout.id = "ai_generated_" + Date.now();
+          this.state.aiWorkout = workout;
+          
+          // Render AI workout
+          document.getElementById("recommendation-title").innerHTML = `✨ ${workout.name} <span class="badge badge-accent">AI COACH</span>`;
+          document.getElementById("recommendation-reason").innerText = workout.description;
+          
+          detailsBox.classList.remove("hidden");
+          let listHTML = `<ul>`;
+          workout.exercises.forEach(ex => {
+            listHTML += `<li><strong>${ex.name}</strong> <a href="${getExerciseGuideUrl(ex.name)}" target="_blank" rel="noopener" class="exercise-video-link" title="Watch Form Guide">🎬 Guide</a>: ${ex.sets} sets x ${ex.reps} <br><span class="text-secondary" style="font-size:0.75rem">${ex.notes}</span></li>`;
+          });
+          listHTML += '</ul>';
+          detailsBox.innerHTML = listHTML;
+
+          startBtn.classList.remove("hidden");
+          revertBtn.classList.remove("hidden");
+        },
+        (error) => {
+          spinner.classList.add("hidden");
+          generateBtn.classList.remove("hidden");
+          alert("AI Coach failed to generate workout: " + error);
+          this.renderTodayTab(); // Reload local rule-based recommendations
+        }
+      );
+    });
+
+    // Today: Revert to Local Rule recommendation
+    document.getElementById("btn-revert-to-local").addEventListener("click", () => {
+      this.state.aiWorkout = null;
+      this.renderTodayTab();
+    });
+
     // Today: Start Recommended Workout
     document.getElementById("btn-start-workout").addEventListener("click", () => {
+      if (this.state.aiWorkout) {
+        this.openWorkoutModal(this.state.aiWorkout);
+        return;
+      }
+
       const recommendation = APEX_RECOMMENDER.getRecommendation(
         this.state.currentDateStr, 
         this.state.loggedWorkouts, 
@@ -628,19 +784,68 @@ const APEX_APP = {
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     document.getElementById("today-date-str").innerText = today.toLocaleDateString('en-US', options);
 
-    // 2. Load Recommendation
+    const titleEl = document.getElementById("recommendation-title");
+    const reasonEl = document.getElementById("recommendation-reason");
+    const detailsBox = document.getElementById("recommendation-details");
+    const startBtn = document.getElementById("btn-start-workout");
+    const syncBtn = document.getElementById("btn-sync-cal-quick");
+    const generateAiBtn = document.getElementById("btn-generate-ai-workout");
+    const revertBtn = document.getElementById("btn-revert-to-local");
+    const spinner = document.getElementById("ai-loading-spinner");
+
+    // Hide AI loader on render refresh
+    if (spinner) spinner.classList.add("hidden");
+
+    // Check if an AI workout has been generated
+    if (this.state.aiWorkout) {
+      const workout = this.state.aiWorkout;
+      titleEl.innerHTML = `✨ ${workout.name} <span class="badge badge-accent">AI COACH</span>`;
+      reasonEl.innerText = workout.description;
+      
+      detailsBox.classList.remove("hidden");
+      let listHTML = `<ul>`;
+      workout.exercises.forEach(ex => {
+        listHTML += `<li><strong>${ex.name}</strong> <a href="${getExerciseGuideUrl(ex.name)}" target="_blank" rel="noopener" class="exercise-video-link" title="Watch Form Guide">🎬 Guide</a>: ${ex.sets} sets x ${ex.reps} <br><span class="text-secondary" style="font-size:0.75rem">${ex.notes}</span></li>`;
+      });
+      listHTML += '</ul>';
+      detailsBox.innerHTML = listHTML;
+
+      startBtn.classList.remove("hidden");
+      if (generateAiBtn) generateAiBtn.classList.add("hidden");
+      if (revertBtn) revertBtn.classList.remove("hidden");
+      if (syncBtn) syncBtn.classList.add("hidden");
+      
+      // Load context card if calendar events exist
+      const contextCard = document.getElementById("calendar-context-card");
+      const contextList = document.getElementById("today-events-list");
+      const todayEvents = this.state.calendarEvents.filter(e => e.date === this.state.currentDateStr);
+      if (todayEvents.length > 0) {
+        contextCard.classList.remove("hidden");
+        contextList.innerHTML = "";
+        todayEvents.forEach(evt => {
+          const li = document.createElement("li");
+          li.className = "context-event-item";
+          li.innerHTML = `
+            <span>📅 ${evt.title}</span>
+            <span class="context-event-time">${evt.start || 'all-day'} - ${evt.end || ''}</span>
+          `;
+          contextList.appendChild(li);
+        });
+      } else {
+        contextCard.classList.add("hidden");
+      }
+      return;
+    }
+
+    // Otherwise, load Rule Recommendation
+    if (revertBtn) revertBtn.classList.add("hidden");
+    
     const recommendation = APEX_RECOMMENDER.getRecommendation(
       this.state.currentDateStr, 
       this.state.loggedWorkouts, 
       this.state.calendarEvents, 
       this.state.goals
     );
-
-    const titleEl = document.getElementById("recommendation-title");
-    const reasonEl = document.getElementById("recommendation-reason");
-    const detailsBox = document.getElementById("recommendation-details");
-    const startBtn = document.getElementById("btn-start-workout");
-    const syncBtn = document.getElementById("btn-sync-cal-quick");
 
     if (recommendation) {
       titleEl.innerText = recommendation.name;
@@ -657,9 +862,18 @@ const APEX_APP = {
         listHTML += '</ul>';
         detailsBox.innerHTML = listHTML;
         startBtn.classList.remove("hidden");
+        
+        // Show AI Button if API key is configured
+        const activeKey = this.state.aiProvider === "gemini" ? this.state.geminiApiKey : this.state.openaiApiKey;
+        if (activeKey && generateAiBtn) {
+          generateAiBtn.classList.remove("hidden");
+        } else if (generateAiBtn) {
+          generateAiBtn.classList.add("hidden");
+        }
       } else {
         detailsBox.classList.add("hidden");
         startBtn.classList.add("hidden");
+        if (generateAiBtn) generateAiBtn.classList.add("hidden");
       }
 
       // Show calendar impacts if they exist
@@ -681,6 +895,8 @@ const APEX_APP = {
       } else {
         contextCard.classList.add("hidden");
       }
+      
+      if (syncBtn) syncBtn.classList.remove("hidden");
     }
 
     // Adjust quick actions view (sync button logic)
@@ -1182,6 +1398,34 @@ const APEX_APP = {
       badge.querySelector(".status-dot").removeAttribute("style");
       text.innerText = "Cloud Off";
       if (syncBtn) syncBtn.classList.add("disabled");
+    }
+  },
+
+  updateAIConfigUI() {
+    const provider = document.getElementById("ai-provider-select").value;
+    this.state.aiProvider = provider;
+    
+    // Toggle input field displays
+    const geminiGroup = document.getElementById("gemini-key-group");
+    const openaiGroup = document.getElementById("openai-key-group");
+    if (geminiGroup && openaiGroup) {
+      if (provider === "gemini") {
+        geminiGroup.style.display = "block";
+        openaiGroup.style.display = "none";
+      } else {
+        geminiGroup.style.display = "none";
+        openaiGroup.style.display = "block";
+      }
+    }
+
+    // Toggle Clear Keys button
+    const clearBtn = document.getElementById("btn-clear-ai-settings");
+    if (clearBtn) {
+      if (this.state.geminiApiKey || this.state.openaiApiKey) {
+        clearBtn.classList.remove("hidden");
+      } else {
+        clearBtn.classList.add("hidden");
+      }
     }
   },
 

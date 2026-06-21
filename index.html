@@ -66,9 +66,15 @@
             <!-- Exercise list injected here -->
           </div>
         </div>
-        <div class="card-footer">
+        <div class="card-footer" style="flex-direction: column; gap: 8px;">
           <button id="btn-start-workout" class="btn btn-primary btn-full hidden">Start Recommended Workout</button>
+          <button id="btn-generate-ai-workout" class="btn btn-accent btn-full hidden">✨ Generate with AI Coach</button>
+          <button id="btn-revert-to-local" class="btn btn-secondary btn-full hidden">↩ Use Rule Recommendation</button>
           <button id="btn-sync-cal-quick" class="btn btn-secondary btn-full">Sync Calendar to Load Workout</button>
+          <div id="ai-loading-spinner" class="ai-loading-container hidden">
+            <div class="spinner-circle"></div>
+            <span id="ai-loading-status">AI Coach is designing your routine...</span>
+          </div>
         </div>
       </div>
 
@@ -302,6 +308,43 @@
         <div id="drive-sync-panel" class="drive-sync-panel">
           <span id="settings-drive-sync-time" class="text-secondary" style="font-size: 0.8rem; font-weight: 600;">Last Cloud Sync: Never</span>
           <button id="btn-sync-drive" class="btn btn-secondary btn-sm" style="width: auto; padding: 4px 12px; font-size: 0.75rem;">Sync Now</button>
+        </div>
+      </div>
+
+      <!-- Gemini & OpenAI AI Integration Card -->
+      <div class="settings-card highlight-card-ai">
+        <h3>✨ Gemini & ChatGPT AI Coach (Optional)</h3>
+        <p class="card-description">Enable a highly personalized AI Workout Coach. Paste your own API key from Google AI Studio (Gemini) or OpenAI to unlock dynamically generated athletic routines tailored to your metrics, schedule, and recovery.</p>
+        
+        <div class="form-group">
+          <label for="ai-provider-select">Active AI Provider</label>
+          <select id="ai-provider-select" class="form-input">
+            <option value="gemini">Google Gemini (Model: gemini-1.5-flash)</option>
+            <option value="openai">OpenAI ChatGPT (Model: gpt-4o-mini)</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="gemini-key-group">
+          <label for="gemini-api-key">Gemini API Key</label>
+          <div class="password-input-container">
+            <input type="password" id="gemini-api-key" placeholder="AIzaSy..." class="form-input">
+            <button type="button" id="btn-toggle-gemini-key" class="btn-toggle-visibility">👁️</button>
+          </div>
+          <small class="form-help">Get a free key from the <a href="https://aistudio.google.com/" target="_blank" rel="noopener">Google AI Studio</a>.</small>
+        </div>
+
+        <div class="form-group" id="openai-key-group" style="display: none;">
+          <label for="openai-api-key">OpenAI API Key</label>
+          <div class="password-input-container">
+            <input type="password" id="openai-api-key" placeholder="sk-proj-..." class="form-input">
+            <button type="button" id="btn-toggle-openai-key" class="btn-toggle-visibility">👁️</button>
+          </div>
+          <small class="form-help">Get a key from the <a href="https://platform.openai.com/" target="_blank" rel="noopener">OpenAI Developer Platform</a>.</small>
+        </div>
+
+        <div class="settings-actions">
+          <button id="btn-save-ai-settings" class="btn btn-primary">Save AI Settings</button>
+          <button id="btn-clear-ai-settings" class="btn btn-danger hidden">Clear Keys</button>
         </div>
       </div>
 
@@ -561,6 +604,7 @@
   <script src="workouts.js"></script>
   <script src="recommender.js"></script>
   <script src="gcal.js"></script>
+  <script src="ai.js"></script>
   <script src="app.js"></script>
   
   <!-- Register PWA Service Worker -->

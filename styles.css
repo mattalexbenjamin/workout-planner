@@ -1382,3 +1382,86 @@ input:checked + .slider:before {
   background: var(--bg-surface-elevated);
   border-color: var(--border-color);
 }
+
+/* AI Settings & Buttons Styling */
+.settings-card.highlight-card-ai {
+  border-color: rgba(142, 45, 226, 0.4);
+  background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(142, 45, 226, 0.05) 100%);
+}
+
+.settings-card.highlight-card-ai h3 {
+  color: #a855f7;
+}
+
+.password-input-container {
+  display: flex;
+  position: relative;
+  align-items: center;
+  width: 100%;
+}
+
+.password-input-container input {
+  width: 100%;
+  padding-right: 44px;
+}
+
+.btn-toggle-visibility {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 1.15rem;
+  padding: 4px;
+  line-height: 1;
+}
+
+.btn-toggle-visibility:hover {
+  color: var(--color-text-primary);
+}
+
+.btn-accent {
+  background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%);
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 15px rgba(74, 0, 224, 0.3);
+}
+
+.btn-accent:hover {
+  background: linear-gradient(135deg, #a044ff 0%, #5d16f8 100%);
+  box-shadow: 0 6px 20px rgba(74, 0, 224, 0.5);
+  transform: translateY(-1px);
+}
+
+/* AI Loading Spinner */
+.ai-loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  gap: 12px;
+  text-align: center;
+  width: 100%;
+}
+
+.spinner-circle {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(142, 45, 226, 0.1);
+  border-top-color: #8e2de2;
+  border-radius: 50%;
+  animation: ai-spin 1s linear infinite;
+}
+
+@keyframes ai-spin {
+  to { transform: rotate(360deg); }
+}
+
+#ai-loading-status {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #a855f7;
+  letter-spacing: 0.2px;
+}
