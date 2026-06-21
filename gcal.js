@@ -1,7 +1,7 @@
 // APEX GOOGLE CALENDAR INTEGRATION & MOCK DATA MANAGER
 
 const APEX_GCAL = {
-  clientId: localStorage.getItem("apex_gcal_client_id") || "",
+  clientId: localStorage.getItem("apex_gcal_client_id") || "716738387764-gdhdjjmquhk4qq6jqa7p2i667h855e3p.apps.googleusercontent.com",
   accessToken: sessionStorage.getItem("apex_gcal_token") || "",
   isMockEnabled: localStorage.getItem("apex_gcal_mock_enabled") !== "false", // default to true
   tokenClient: null,
