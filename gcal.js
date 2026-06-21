@@ -339,7 +339,7 @@ const APEX_GCAL = {
 
   loadCalendarList(onSuccess, onError) {
     if (!this.accessToken) {
-      if (onError) onError("No access token.");
+      if (onError) onError(new Error("No access token."));
       return;
     }
     const url = "https://www.googleapis.com/calendar/v3/users/me/calendarList";
@@ -349,7 +349,15 @@ const APEX_GCAL = {
       }
     })
     .then(res => {
-      if (!res.ok) throw new Error("Failed to fetch calendars: " + res.statusText);
+      if (!res.ok) {
+        if (res.status === 403 || res.status === 401) {
+          // Token has insufficient scopes or has expired. Clean up.
+          sessionStorage.removeItem("apex_gcal_token");
+          this.accessToken = "";
+          throw new Error(`Google API Error ${res.status}: Insufficient permissions or session expired. Please sign out and sign in again.`);
+        }
+        throw new Error(`Failed to fetch calendars: ${res.status} ${res.statusText}`);
+      }
       return res.json();
     })
     .then(data => {
@@ -357,7 +365,7 @@ const APEX_GCAL = {
     })
     .catch(err => {
       console.error("Calendar list fetch error:", err);
-      if (onError) onError(err.message);
+      if (onError) onError(err);
     });
   }
 };

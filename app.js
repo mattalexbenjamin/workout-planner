@@ -1481,9 +1481,18 @@ const APEX_APP = {
         });
         
         selectGroup.style.display = "block";
-      },
       (err) => {
         console.warn("Failed to load calendar list:", err);
+        const selectGroup = document.getElementById("settings-calendar-select-group");
+        if (selectGroup) selectGroup.style.display = "none";
+        
+        // Notify the user if a real API auth error happened
+        if (err.message && err.message.includes("Google API Error")) {
+          alert(err.message);
+        }
+        
+        this.updateGcalStatusUI();
+        this.updateDriveStatusUI();
       }
     );
   }
