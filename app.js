@@ -114,6 +114,32 @@ const APEX_APP = {
     document.getElementById("gemini-api-key").value = this.state.geminiApiKey;
     document.getElementById("openai-api-key").value = this.state.openaiApiKey;
     this.updateAIConfigUI();
+
+    // Automatic Migration: Permanently clean up initial mock logs (Jun 19 & 20)
+    const mockKeys = ["2026-06-19_active_mobility", "2026-06-20_athletic_strength_a"];
+    let migrated = false;
+    const originalLength = this.state.loggedWorkouts.length;
+
+    this.state.loggedWorkouts = this.state.loggedWorkouts.filter(log => {
+      const key = log.uuid || (log.date + "_" + log.id);
+      if (mockKeys.includes(key)) {
+        migrated = true;
+        if (!this.state.deletedLogs.includes(key)) {
+          this.state.deletedLogs.push(key);
+        }
+        return false;
+      }
+      return true;
+    });
+
+    if (migrated || originalLength !== this.state.loggedWorkouts.length) {
+      localStorage.setItem("apex_deleted_logs", JSON.stringify(this.state.deletedLogs));
+      this.saveLogsToStorage();
+      // Trigger background sync to propagate to Drive
+      if (APEX_GCAL.accessToken) {
+        setTimeout(() => this.syncWithGDrive(true), 2000);
+      }
+    }
   },
 
   saveGoalsToStorage() {
