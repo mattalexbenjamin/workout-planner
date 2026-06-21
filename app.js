@@ -34,7 +34,7 @@ const APEX_APP = {
     this.updateActiveTabUI();
     this.updateDriveStatusUI();
     this.fetchAndRenderCalendarList();
-    if (window.APEX_ANALYTICS) {
+    if (typeof APEX_ANALYTICS !== "undefined") {
       APEX_ANALYTICS.init();
     }
     this.render();
@@ -732,7 +732,7 @@ const APEX_APP = {
     this.renderCalendarTab();
     this.renderLibraryTab();
     this.renderHistoryTab();
-    if (this.state.activeTab === "tab-analytics" && window.APEX_ANALYTICS) {
+    if (this.state.activeTab === "tab-analytics" && typeof APEX_ANALYTICS !== "undefined") {
       APEX_ANALYTICS.updateCharts(this.state.loggedWorkouts, this.state.analyticsRangeDays, this.state.currentDateStr);
     }
   },

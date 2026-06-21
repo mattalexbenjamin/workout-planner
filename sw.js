@@ -1,4 +1,4 @@
-const CACHE_NAME = 'apex-summer-v13';
+const CACHE_NAME = 'apex-summer-v14';
 const ASSETS = [
   './',
   './index.html',
@@ -17,6 +17,7 @@ const ASSETS = [
 
 // Install Service Worker
 self.addEventListener('install', e => {
+  self.skipWaiting();
   e.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       console.log('[Service Worker] Caching App Shell Assets');
@@ -37,7 +38,7 @@ self.addEventListener('activate', e => {
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
 });
 

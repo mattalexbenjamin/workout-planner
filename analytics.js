@@ -18,7 +18,7 @@ const APEX_ANALYTICS = {
         e.currentTarget.classList.add("active");
         
         const days = e.currentTarget.getAttribute("data-days");
-        if (window.APEX_APP) {
+        if (typeof APEX_APP !== "undefined") {
           APEX_APP.state.analyticsRangeDays = days;
           APEX_APP.render();
         }
@@ -73,7 +73,7 @@ const APEX_ANALYTICS = {
 
       // Aggregate Muscle Stress
       let logSore = log.soreness;
-      if (!logSore && window.APEX_RECOMMENDER) {
+      if (!logSore && typeof APEX_RECOMMENDER !== "undefined") {
         logSore = APEX_RECOMMENDER.getDefaultSorenessImpact(log);
       }
       
