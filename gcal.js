@@ -1,18 +1,11 @@
-// APEX GOOGLE CALENDAR INTEGRATION & MOCK DATA MANAGER
+// Clean up any stale client ID from older versions
+localStorage.removeItem("apex_gcal_client_id");
 
 const APEX_GCAL = {
-  clientId: localStorage.getItem("apex_gcal_client_id") || "",
+  clientId: "716738387764-gdhdjjmquhk4qq6jqa7p2i667h855e3p.apps.googleusercontent.com",
   accessToken: sessionStorage.getItem("apex_gcal_token") || "",
   isMockEnabled: localStorage.getItem("apex_gcal_mock_enabled") !== "false", // default to true
   tokenClient: null,
-
-  // Save Settings
-  saveConfig(clientId, isMockEnabled) {
-    this.clientId = clientId;
-    this.isMockEnabled = isMockEnabled;
-    localStorage.setItem("apex_gcal_client_id", clientId);
-    localStorage.setItem("apex_gcal_mock_enabled", isMockEnabled);
-  },
 
   // Setup OAuth Client
   initClient(onSuccessCallback, onErrorCallback) {

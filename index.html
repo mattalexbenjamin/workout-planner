@@ -283,14 +283,8 @@
 
       <!-- Google Integration Settings Card -->
       <div class="settings-card">
-        <h3>Google Cloud & Calendar Integration</h3>
-        <p class="card-description">Synchronize your workouts and calendar. Logging in will sync your local logs and targets directly to your personal Google Drive, backing up your data and keeping multiple devices in sync automatically.</p>
-        
-        <div class="form-group">
-          <label for="gcal-client-id">Google Client ID</label>
-          <input type="text" id="gcal-client-id" placeholder="1234567890-abc123xyz.apps.googleusercontent.com" class="form-input">
-          <small class="form-help">Create a client ID in the <a href="https://console.cloud.google.com" target="_blank" rel="noopener">Google Cloud Console</a>. Be sure to authorize both <strong>Calendar</strong> and <strong>Drive</strong> scopes.</small>
-        </div>
+        <h3>Google Cloud Integration</h3>
+        <p class="card-description">Sign in with Google to sync your workout history, preferences, and athletic calendar across your devices securely.</p>
 
         <div class="form-group" id="settings-calendar-select-group" style="display: none;">
           <label for="gcal-calendar-select">Workout Source Calendar</label>
@@ -300,7 +294,6 @@
         </div>
 
         <div class="settings-actions">
-          <button id="btn-save-gcal" class="btn btn-secondary">Save Client ID</button>
           <button id="btn-login-gcal" class="btn btn-primary">Sign in with Google</button>
           <button id="btn-logout-gcal" class="btn btn-danger hidden">Sign Out</button>
         </div>
