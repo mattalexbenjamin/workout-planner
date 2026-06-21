@@ -15,6 +15,7 @@ const APEX_APP = {
       frequency: 3
     },
     loggedWorkouts: [],
+    deletedLogs: [], // Tombstone list for workout deletions
     calendarEvents: [],
     syncing: false,
     selectedCalendarId: localStorage.getItem("apex_gcal_calendar_id") || "primary"
@@ -44,16 +45,22 @@ const APEX_APP = {
       this.state.goals = JSON.parse(savedGoals);
     }
     
-    // Logged Workouts
+    // Logged Workouts & Deleted Logs
     this.state.lastDriveSync = localStorage.getItem("apex_last_drive_sync") ? parseInt(localStorage.getItem("apex_last_drive_sync")) : null;
 
-    // Logged Workouts
+    // Load deleted log tombstones
+    this.state.deletedLogs = [];
+    const savedDeleted = localStorage.getItem("apex_deleted_logs");
+    if (savedDeleted) {
+      this.state.deletedLogs = JSON.parse(savedDeleted);
+    }
+
     const savedLogs = localStorage.getItem("apex_logs");
     if (savedLogs) {
       this.state.loggedWorkouts = JSON.parse(savedLogs);
     } else {
       // Prepopulate mock history items so the experience is premium out of the box
-      this.state.loggedWorkouts = [
+      const mockLogs = [
         {
           id: "active_mobility",
           type: "lifting", // categorized as lift for stats
@@ -75,6 +82,11 @@ const APEX_APP = {
           soreness: { legs: 4.0, shoulders: 3.0, core: 2.5, fatigue: 3.5 }
         }
       ];
+      // Filter out any mock logs that have been tombstoned
+      this.state.loggedWorkouts = mockLogs.filter(log => {
+        const key = log.uuid || (log.date + "_" + log.id);
+        return !this.state.deletedLogs.includes(key);
+      });
       this.saveLogsToStorage();
     }
 
@@ -980,9 +992,23 @@ const APEX_APP = {
           // Remove from state (matching index of sorted, find original index)
           const origIndex = this.state.loggedWorkouts.findIndex(w => w.date === log.date && w.id === log.id && w.notes === log.notes);
           if (origIndex > -1) {
+            const deletedLog = this.state.loggedWorkouts[origIndex];
+            const logKey = deletedLog.uuid || (deletedLog.date + "_" + deletedLog.id);
+            
+            if (!this.state.deletedLogs.includes(logKey)) {
+              this.state.deletedLogs.push(logKey);
+              localStorage.setItem("apex_deleted_logs", JSON.stringify(this.state.deletedLogs));
+            }
+
             this.state.loggedWorkouts.splice(origIndex, 1);
             this.saveLogsToStorage();
             alert("Session deleted.");
+            
+            // Auto-upload deletion to Drive if logged in
+            if (APEX_GCAL.accessToken) {
+              this.syncWithGDrive(true); // silent sync
+            }
+            
             this.render();
           }
         }
@@ -1022,6 +1048,7 @@ const APEX_APP = {
         const localData = {
           goals: this.state.goals,
           logs: this.state.loggedWorkouts,
+          deletedLogs: this.state.deletedLogs || [],
           lastSyncTime: Date.now()
         };
 
@@ -1038,11 +1065,24 @@ const APEX_APP = {
                 this.loadStateFromStorage();
               }
 
-              const mergedLogs = this.mergeLogs(this.state.loggedWorkouts, driveData.logs || []);
+              // Merge and filter deleted log keys (tombstones)
+              const driveDeleted = driveData.deletedLogs || [];
+              const localDeleted = this.state.deletedLogs || [];
+              const mergedDeleted = Array.from(new Set([...localDeleted, ...driveDeleted]));
+              this.state.deletedLogs = mergedDeleted;
+              localStorage.setItem("apex_deleted_logs", JSON.stringify(mergedDeleted));
+
+              const mergedLogs = this.mergeLogs(this.state.loggedWorkouts, driveData.logs || [])
+                .filter(log => {
+                  const key = log.uuid || (log.date + "_" + log.id);
+                  return !mergedDeleted.includes(key);
+                });
+
               this.state.loggedWorkouts = mergedLogs;
               this.saveLogsToStorage();
 
               localData.logs = mergedLogs;
+              localData.deletedLogs = mergedDeleted;
               localData.goals = this.state.goals;
 
               APEX_GCAL.uploadBackupFile(
