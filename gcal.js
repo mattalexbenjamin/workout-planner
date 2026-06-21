@@ -173,33 +173,89 @@ const APEX_GCAL = {
   },
 
   // Google Drive REST API Helpers
-  findBackupFile(onSuccess, onError) {
+  getOrCreateFolder(folderName, onSuccess, onError) {
     if (!this.accessToken) {
       if (onError) onError("No access token. Sign in with Google.");
       return;
     }
-    const url = `https://www.googleapis.com/drive/v3/files?q=name='apex_workout_data.json'+and+trashed=false&fields=files(id,name,modifiedTime)`;
-    fetch(url, {
+
+    const searchUrl = `https://www.googleapis.com/drive/v3/files?q=name='${encodeURIComponent(folderName)}'+and+mimeType='application/vnd.google-apps.folder'+and+trashed=false&fields=files(id,name)`;
+    
+    fetch(searchUrl, {
       headers: {
         "Authorization": `Bearer ${this.accessToken}`,
         "Content-Type": "application/json"
       }
     })
     .then(res => {
-      if (!res.ok) throw new Error("Failed to search Google Drive: " + res.statusText);
+      if (!res.ok) throw new Error("Failed to search folder: " + res.statusText);
       return res.json();
     })
     .then(data => {
       if (data.files && data.files.length > 0) {
-        onSuccess(data.files[0]);
+        onSuccess(data.files[0].id);
       } else {
-        onSuccess(null);
+        const createUrl = "https://www.googleapis.com/drive/v3/files";
+        fetch(createUrl, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${this.accessToken}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            name: folderName,
+            mimeType: "application/vnd.google-apps.folder"
+          })
+        })
+        .then(createRes => {
+          if (!createRes.ok) throw new Error("Failed to create folder: " + createRes.statusText);
+          return createRes.json();
+        })
+        .then(folderData => {
+          onSuccess(folderData.id);
+        })
+        .catch(err => {
+          console.error("Folder Creation Error:", err);
+          if (onError) onError(err.message);
+        });
       }
     })
     .catch(err => {
-      console.error("GDrive Search Error:", err);
+      console.error("Folder Search Error:", err);
       if (onError) onError(err.message);
     });
+  },
+
+  findBackupFile(onSuccess, onError) {
+    if (!this.accessToken) {
+      if (onError) onError("No access token. Sign in with Google.");
+      return;
+    }
+
+    this.getOrCreateFolder("APEX Workout Planner", (folderId) => {
+      const url = `https://www.googleapis.com/drive/v3/files?q=name='apex_workout_data.json'+and+'${folderId}'+in+parents+and+trashed=false&fields=files(id,name,modifiedTime)`;
+      fetch(url, {
+        headers: {
+          "Authorization": `Bearer ${this.accessToken}`,
+          "Content-Type": "application/json"
+        }
+      })
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to search Google Drive: " + res.statusText);
+        return res.json();
+      })
+      .then(data => {
+        if (data.files && data.files.length > 0) {
+          onSuccess(data.files[0], folderId);
+        } else {
+          onSuccess(null, folderId);
+        }
+      })
+      .catch(err => {
+        console.error("GDrive Search Error:", err);
+        if (onError) onError(err.message);
+      });
+    }, onError);
   },
 
   downloadBackupFile(fileId, onSuccess, onError) {
@@ -226,7 +282,7 @@ const APEX_GCAL = {
     });
   },
 
-  uploadBackupFile(fileId, localData, onSuccess, onError) {
+  uploadBackupFile(fileId, folderId, localData, onSuccess, onError) {
     if (!this.accessToken) {
       if (onError) onError("No access token.");
       return;
@@ -245,6 +301,10 @@ const APEX_GCAL = {
       name: "apex_workout_data.json",
       mimeType: "application/json"
     };
+    
+    if (!fileId && folderId) {
+      metadata.parents = [folderId];
+    }
     
     const body = [
       `\r\n--${boundary}\r\n`,

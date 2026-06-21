@@ -1284,7 +1284,7 @@ const APEX_APP = {
     this.updateDriveStatusUI();
 
     APEX_GCAL.findBackupFile(
-      (file) => {
+      (file, folderId) => {
         const localData = {
           goals: this.state.goals,
           logs: this.state.loggedWorkouts,
@@ -1327,6 +1327,7 @@ const APEX_APP = {
 
               APEX_GCAL.uploadBackupFile(
                 file.id,
+                folderId,
                 localData,
                 (uploadResult) => {
                   this.state.syncingDrive = false;
@@ -1352,6 +1353,7 @@ const APEX_APP = {
         } else {
           APEX_GCAL.uploadBackupFile(
             null,
+            folderId,
             localData,
             (uploadResult) => {
               this.state.syncingDrive = false;
