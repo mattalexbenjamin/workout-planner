@@ -215,6 +215,7 @@ const APEX_APP = {
       APEX_GCAL.isMockEnabled = e.target.checked;
       localStorage.setItem("apex_gcal_mock_enabled", APEX_GCAL.isMockEnabled);
       this.syncCalendarData();
+      this.fetchAndRenderCalendarList();
     });
 
     // Settings: Google Login

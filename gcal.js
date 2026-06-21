@@ -22,7 +22,7 @@ const APEX_GCAL = {
     try {
       this.tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: this.clientId,
-        scope: "https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/drive.file",
+        scope: "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.file",
         callback: (tokenResponse) => {
           if (tokenResponse.access_token) {
             this.accessToken = tokenResponse.access_token;
