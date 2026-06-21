@@ -22,7 +22,8 @@ const APEX_APP = {
     aiProvider: "gemini",
     geminiApiKey: "",
     openaiApiKey: "",
-    aiWorkout: null
+    aiWorkout: null,
+    analyticsRangeDays: "7"
   },
 
   // Initialize App
@@ -33,6 +34,9 @@ const APEX_APP = {
     this.updateActiveTabUI();
     this.updateDriveStatusUI();
     this.fetchAndRenderCalendarList();
+    if (window.APEX_ANALYTICS) {
+      APEX_ANALYTICS.init();
+    }
     this.render();
 
     // Silent background sync on start if token exists
@@ -728,6 +732,9 @@ const APEX_APP = {
     this.renderCalendarTab();
     this.renderLibraryTab();
     this.renderHistoryTab();
+    if (this.state.activeTab === "tab-analytics" && window.APEX_ANALYTICS) {
+      APEX_ANALYTICS.updateCharts(this.state.loggedWorkouts, this.state.analyticsRangeDays, this.state.currentDateStr);
+    }
   },
 
   // Date utilities
