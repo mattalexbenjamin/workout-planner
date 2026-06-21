@@ -216,6 +216,16 @@ const APEX_APP = {
 
     const incomingGcalIds = new Set();
 
+    const getEventDuration = (start, end) => {
+      if (!start || !end) return 60;
+      const [startH, startM] = start.split(":").map(Number);
+      const [endH, endM] = end.split(":").map(Number);
+      if (isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) return 60;
+      let diff = (endH * 60 + endM) - (startH * 60 + startM);
+      if (diff < 0) diff += 24 * 60;
+      return diff;
+    };
+
     events.forEach(evt => {
       const classification = APEX_GCAL.classifyEventLocal(evt.title, evt.description || "");
       if (!classification) return;
@@ -229,6 +239,7 @@ const APEX_APP = {
 
       const isFuture = evt.date > todayStr;
       const isInRange = evt.date <= todayPlus14Str;
+      const durationVal = getEventDuration(evt.start, evt.end);
 
       if (existingIndex === -1) {
         // Create new log
@@ -241,7 +252,7 @@ const APEX_APP = {
             type: classification.type,
             date: evt.date,
             start: evt.start,
-            duration: 60,
+            duration: durationVal,
             intensity: 5,
             exercises: [],
             notes: `Auto-logged from calendar: ${evt.title}`,
@@ -259,7 +270,7 @@ const APEX_APP = {
             type: classification.type,
             date: evt.date,
             start: evt.start,
-            duration: 60,
+            duration: durationVal,
             intensity: 5,
             exercises: [],
             notes: `Planned from calendar: ${evt.title}`,
@@ -293,9 +304,14 @@ const APEX_APP = {
           changed = true;
         }
 
-        // 3. Time changed
+        // 3. Time / Duration changed
         if (existing.start !== evt.start) {
           existing.start = evt.start;
+          changed = true;
+        }
+
+        if (existing.duration !== durationVal) {
+          existing.duration = durationVal;
           changed = true;
         }
         
