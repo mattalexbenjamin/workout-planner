@@ -90,6 +90,7 @@ const APEX_APP = {
   },
 
   saveGoalsToStorage() {
+    this.state.goals.lastUpdated = Date.now();
     localStorage.setItem("apex_goals", JSON.stringify(this.state.goals));
   },
 
@@ -210,6 +211,12 @@ const APEX_APP = {
 
       this.saveGoalsToStorage();
       alert("Fitness targets updated.");
+
+      // Auto-upload the updated goals to Drive
+      if (APEX_GCAL.accessToken) {
+        this.syncWithGDrive(true);
+      }
+
       this.render();
     });
 
@@ -1015,11 +1022,21 @@ const APEX_APP = {
           APEX_GCAL.downloadBackupFile(
             file.id,
             (driveData) => {
+              // Merge Goals: newer lastUpdated timestamp wins
+              const driveGoals = driveData.goals || {};
+              const localGoals = this.state.goals || {};
+              if (driveGoals.lastUpdated > (localGoals.lastUpdated || 0)) {
+                this.state.goals = driveGoals;
+                this.saveGoalsToStorage();
+                this.loadStateFromStorage();
+              }
+
               const mergedLogs = this.mergeLogs(this.state.loggedWorkouts, driveData.logs || []);
               this.state.loggedWorkouts = mergedLogs;
               this.saveLogsToStorage();
 
               localData.logs = mergedLogs;
+              localData.goals = this.state.goals;
 
               APEX_GCAL.uploadBackupFile(
                 file.id,
