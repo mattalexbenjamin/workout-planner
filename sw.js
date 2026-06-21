@@ -1,4 +1,4 @@
-const CACHE_NAME = 'apex-summer-v2';
+const CACHE_NAME = 'apex-summer-v3';
 const ASSETS = [
   './',
   './index.html',
