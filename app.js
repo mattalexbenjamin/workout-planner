@@ -163,15 +163,24 @@ const APEX_APP = {
     // Determine week dates based on current offset
     const weekRange = this.getWeekStartAndEndDates(this.state.currentWeekOffset);
     
+    // Widen range: Monday of selected week - 7 days to Sunday of selected week + 14 days
+    const fetchStart = new Date(weekRange.monday);
+    fetchStart.setDate(fetchStart.getDate() - 7);
+    const fetchEnd = new Date(weekRange.sunday);
+    fetchEnd.setDate(fetchEnd.getDate() + 14);
+    
+    const fetchStartStr = APEX_RECOMMENDER.formatDateKey(fetchStart);
+    const fetchEndStr = APEX_RECOMMENDER.formatDateKey(fetchEnd);
+
     APEX_GCAL.loadCalendarEvents(
       this.state.selectedCalendarId || "primary",
-      weekRange.startStr, 
-      weekRange.endStr,
+      fetchStartStr, 
+      fetchEndStr,
       (events) => {
         // Merge or replace events for the fetched range
         // Remove existing events in this range to avoid duplicates
-        const start = new Date(weekRange.startStr + 'T00:00:00');
-        const end = new Date(weekRange.endStr + 'T23:59:59');
+        const start = new Date(fetchStartStr + 'T00:00:00');
+        const end = new Date(fetchEndStr + 'T23:59:59');
         
         this.state.calendarEvents = this.state.calendarEvents.filter(e => {
           const eDate = new Date(e.date + 'T00:00:00');
@@ -180,6 +189,10 @@ const APEX_APP = {
 
         // Add newly loaded events
         this.state.calendarEvents.push(...events);
+
+        // Auto-log workouts from calendar
+        this.autoLogCalendarWorkouts(events);
+
         this.state.syncing = false;
         this.updateGcalStatusUI();
         this.render();
@@ -194,6 +207,127 @@ const APEX_APP = {
         }
       }
     );
+  },
+
+  autoLogCalendarWorkouts(events) {
+    const todayStr = this.state.currentDateStr;
+    const todayPlus14Str = APEX_RECOMMENDER.addDays(todayStr, 14);
+    let changed = false;
+
+    const incomingGcalIds = new Set();
+
+    events.forEach(evt => {
+      const classification = APEX_GCAL.classifyEventLocal(evt.title, evt.description || "");
+      if (!classification) return;
+
+      incomingGcalIds.add(evt.id);
+
+      const existingIndex = this.state.loggedWorkouts.findIndex(w => w.gcalEventId === evt.id);
+      const isDeleted = this.state.deletedLogs.includes(evt.id);
+
+      if (isDeleted) return;
+
+      const isFuture = evt.date > todayStr;
+      const isInRange = evt.date <= todayPlus14Str;
+
+      if (existingIndex === -1) {
+        // Create new log
+        if (evt.date <= todayStr) {
+          // Completed past workout
+          const newLog = {
+            uuid: evt.id,
+            gcalEventId: evt.id,
+            id: classification.id,
+            type: classification.type,
+            date: evt.date,
+            start: evt.start,
+            duration: 60,
+            intensity: 5,
+            exercises: [],
+            notes: `Auto-logged from calendar: ${evt.title}`,
+            soreness: { legs: 1.0, shoulders: 1.0, core: 1.0, fatigue: 1.0 },
+            isPlanned: false
+          };
+          this.state.loggedWorkouts.push(newLog);
+          changed = true;
+        } else if (isFuture && isInRange) {
+          // Planned future workout
+          const newLog = {
+            uuid: evt.id,
+            gcalEventId: evt.id,
+            id: classification.id,
+            type: classification.type,
+            date: evt.date,
+            start: evt.start,
+            duration: 60,
+            intensity: 5,
+            exercises: [],
+            notes: `Planned from calendar: ${evt.title}`,
+            soreness: { legs: 1.0, shoulders: 1.0, core: 1.0, fatigue: 1.0 },
+            isPlanned: true
+          };
+          this.state.loggedWorkouts.push(newLog);
+          changed = true;
+        }
+      } else {
+        // Sync existing log adjustments
+        const existing = this.state.loggedWorkouts[existingIndex];
+        
+        // 1. Convert planned to completed if it's now in the past
+        if (existing.isPlanned && evt.date <= todayStr) {
+          existing.isPlanned = false;
+          existing.notes = `Auto-logged from calendar: ${evt.title}`;
+          changed = true;
+        }
+        
+        // 2. Date changed
+        if (existing.date !== evt.date) {
+          existing.date = evt.date;
+          // check if we transitioned from future to past or vice versa
+          const wasFuture = existing.isPlanned;
+          const isNowFuture = evt.date > todayStr;
+          if (wasFuture !== isNowFuture && isInRange) {
+            existing.isPlanned = isNowFuture;
+            existing.notes = isNowFuture ? `Planned from calendar: ${evt.title}` : `Auto-logged from calendar: ${evt.title}`;
+          }
+          changed = true;
+        }
+
+        // 3. Time changed
+        if (existing.start !== evt.start) {
+          existing.start = evt.start;
+          changed = true;
+        }
+        
+        // 4. Title changed (update classification if needed)
+        const expectedNotes = (existing.isPlanned ? "Planned from calendar: " : "Auto-logged from calendar: ") + evt.title;
+        if (existing.notes !== expectedNotes) {
+          existing.notes = expectedNotes;
+          existing.id = classification.id;
+          existing.type = classification.type;
+          changed = true;
+        }
+      }
+    });
+
+    // 2. Clean up future planned workouts that were deleted from Google Calendar
+    for (let i = this.state.loggedWorkouts.length - 1; i >= 0; i--) {
+      const log = this.state.loggedWorkouts[i];
+      if (log.gcalEventId && log.isPlanned) {
+        const isInRange = log.date > todayStr && log.date <= todayPlus14Str;
+        if (isInRange && !incomingGcalIds.has(log.gcalEventId)) {
+          this.state.loggedWorkouts.splice(i, 1);
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) {
+      this.saveLogsToStorage();
+      if (APEX_GCAL.accessToken) {
+        this.syncWithGDrive(true); // silent backup to Google Drive
+      }
+    }
   },
 
   // Setup UI Interactions
@@ -1014,6 +1148,44 @@ const APEX_APP = {
     } else {
       document.getElementById("weight-progress-fill").style.width = `100%`;
     }
+
+    // 5. Next Scheduled Session Card
+    const futurePlanned = this.state.loggedWorkouts
+      .filter(w => w.isPlanned && w.date > this.state.currentDateStr)
+      .sort((a, b) => new Date(a.date + 'T00:00:00') - new Date(b.date + 'T00:00:00'));
+
+    const nextCard = document.getElementById("next-scheduled-card");
+    if (nextCard) {
+      if (futurePlanned.length > 0) {
+        nextCard.classList.remove("hidden");
+        const nextLog = futurePlanned[0];
+        
+        const template = ATHLETIC_WORKOUTS.find(w => w.id === nextLog.id);
+        const title = template ? template.name : (nextLog.id ? nextLog.id.replace(/_/g, ' ').toUpperCase() : 'Workout');
+        
+        const sportIcons = {
+          lifting: "🏋️‍♂️",
+          volleyball: "🏐",
+          football: "🏈",
+          running: "🏃‍♂️",
+          basketball: "🏀",
+          hiking: "🥾",
+          surfing: "🏄‍♂️",
+          tennis: "🎾"
+        };
+        const icon = sportIcons[nextLog.type] || "📅";
+        
+        document.getElementById("upcoming-session-icon").innerText = icon;
+        document.getElementById("upcoming-session-title").innerText = title;
+        
+        const opt = { weekday: 'short', month: 'short', day: 'numeric' };
+        const dateStr = new Date(nextLog.date + 'T00:00:00').toLocaleDateString('en-US', opt);
+        const timeStr = nextLog.start ? ` at ${nextLog.start}` : "";
+        document.getElementById("upcoming-session-time").innerText = `${dateStr}${timeStr}`;
+      } else {
+        nextCard.classList.add("hidden");
+      }
+    }
   },
 
   renderCalendarTab() {
@@ -1027,6 +1199,9 @@ const APEX_APP = {
 
     const grid = document.getElementById("calendar-weekly-grid");
     grid.innerHTML = "";
+
+    // Gather all logged event IDs to deduplicate from raw calendar display
+    const loggedEventIds = new Set(this.state.loggedWorkouts.map(w => w.gcalEventId).filter(Boolean));
 
     // Generate Mon-Sun cards
     for (let i = 0; i < 7; i++) {
@@ -1046,29 +1221,50 @@ const APEX_APP = {
       const dayEvents = this.state.calendarEvents.filter(e => e.date === dayKey);
       const dayLogs = this.state.loggedWorkouts.filter(w => w.date === dayKey);
 
+      // Filter out events that have already been logged
+      const unloggedDayEvents = dayEvents.filter(e => !loggedEventIds.has(e.id));
+
       let contentHTML = "";
 
-      if (dayEvents.length === 0 && dayLogs.length === 0) {
+      if (unloggedDayEvents.length === 0 && dayLogs.length === 0) {
         contentHTML = `<div class="day-placeholder">Rest / Recovery Day</div>`;
       } else {
         contentHTML = `<div class="day-events">`;
         
-        // Render completed workout logs first (priority checkmarks!)
+        // Render logged workouts (both completed and planned)
         dayLogs.forEach(log => {
-          const typeIcon = log.type === 'lifting' ? '🏋️‍♂️' : log.type === 'volleyball' ? '🏐' : log.type === 'football' ? '🏈' : '🏃‍♂️';
-          const title = log.id ? ATHLETIC_WORKOUTS.find(w => w.id === log.id)?.name || log.id.toUpperCase().replace('_', ' ') : 'Workout';
+          const sportIcons = {
+            lifting: "🏋️‍♂️",
+            volleyball: "🏐",
+            football: "🏈",
+            running: "🏃‍♂️",
+            basketball: "🏀",
+            hiking: "🥾",
+            surfing: "🏄‍♂️",
+            tennis: "🎾"
+          };
+          const typeIcon = sportIcons[log.type] || "📅";
+          const title = log.id ? ATHLETIC_WORKOUTS.find(w => w.id === log.id)?.name || log.id.toUpperCase().replace(/_/g, ' ') : 'Workout';
           
-          contentHTML += `
-            <div class="cal-event-badge ${log.type}">
-              <span>✅ ${typeIcon} Completed: ${title}</span>
-              <span class="event-details">${log.duration}m | RPE ${log.intensity}</span>
-            </div>
-          `;
+          if (log.isPlanned) {
+            contentHTML += `
+              <div class="cal-event-badge ${log.type} planned-workout">
+                <span>⏳ ${typeIcon} Planned: ${title}</span>
+                <span class="event-details">Planned</span>
+              </div>
+            `;
+          } else {
+            contentHTML += `
+              <div class="cal-event-badge ${log.type} completed-workout">
+                <span>✅ ${typeIcon} Completed: ${title}</span>
+                <span class="event-details">${log.duration}m | RPE ${log.intensity}</span>
+              </div>
+            `;
+          }
         });
 
-        // Render Calendar events next
-        dayEvents.forEach(evt => {
-          // Check if this event was keyword flagged
+        // Render remaining generic unlogged calendar events next
+        unloggedDayEvents.forEach(evt => {
           const titleLower = evt.title.toLowerCase();
           const isVb = ["volleyball", "vball", "beach", "sand"].some(kw => titleLower.includes(kw));
           const isFb = ["football", "flag", "game"].some(kw => titleLower.includes(kw));
@@ -1178,8 +1374,10 @@ const APEX_APP = {
     const list = document.getElementById("history-list");
     list.innerHTML = "";
 
-    // Sort by date reverse (newest first)
-    const sorted = [...this.state.loggedWorkouts].sort((a,b) => new Date(b.date) - new Date(a.date));
+    // Sort by date reverse (newest first) and filter out planned workouts
+    const sorted = [...this.state.loggedWorkouts]
+      .filter(w => !w.isPlanned)
+      .sort((a,b) => new Date(b.date) - new Date(a.date));
 
     // Calculate Summary Stats
     const totalCount = sorted.length;

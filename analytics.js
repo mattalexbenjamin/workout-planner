@@ -3,6 +3,7 @@
 
 const APEX_ANALYTICS = {
   workoutTypeChart: null,
+  liftingFocusChart: null,
 
   init() {
     this.setupEventListeners();
@@ -27,8 +28,9 @@ const APEX_ANALYTICS = {
   },
 
   updateCharts(logs, rangeDays, currentDateStr) {
-    // 1. Filter logs within the selected range (up to currentDateStr)
+    // 1. Filter logs within the selected range (up to currentDateStr) and ignore planned workouts
     const filteredLogs = logs.filter(log => {
+      if (log.isPlanned) return false;
       if (log.date > currentDateStr) return false;
       if (rangeDays === 'all') return true;
       
@@ -51,8 +53,29 @@ const APEX_ANALYTICS = {
       football: { sessions: 0, minutes: 0 },
       running: { sessions: 0, minutes: 0 },
       prehab: { sessions: 0, minutes: 0 },
-      mobility: { sessions: 0, minutes: 0 }
+      mobility: { sessions: 0, minutes: 0 },
+      other_sports: { sessions: 0, minutes: 0 }
     };
+
+    // Exercise classification logic
+    const classifyExercise = (name) => {
+      const nameLower = name.toLowerCase();
+      // Legs / Lower Body
+      const legKeywords = ["squat", "plyo", "skip", "rdl", "deadlift", "calf", "leg", "lunges", "lunge", "step-up", "glute", "hip", "bound", "skater", "jumping", "jump", "pogo", "tibial", "heel", "quad", "calf", "hamstring", "cleans"];
+      // Shoulders / Upper Body
+      const shoulderKeywords = ["overhead", "bench", "press", "pull-up", "chin-up", "rotation", "push-up", "arm", "shoulder", "chest", "row", "rotator", "cuff", "scapular", "clean", "delt", "shrug", "back", "push", "pull", "upper"];
+      // Core / Mobility / Flexibility
+      const coreKeywords = ["twist", "raise", "plank", "mobility", "stretch", "flexibility", "foam", "roll", "flow", "crunch", "sit-up", "core", "abs", "cat-cow", "belly", "breath"];
+
+      if (legKeywords.some(kw => nameLower.includes(kw))) return "legs";
+      if (shoulderKeywords.some(kw => nameLower.includes(kw))) return "shoulders";
+      if (coreKeywords.some(kw => nameLower.includes(kw))) return "core";
+      return null;
+    };
+
+    let legsExercisesCount = 0;
+    let shouldersExercisesCount = 0;
+    let coreExercisesCount = 0;
 
     filteredLogs.forEach(log => {
       // Aggregate Workout Type and Volume
@@ -60,6 +83,7 @@ const APEX_ANALYTICS = {
       if (log.type === "volleyball") cat = "volleyball";
       else if (log.type === "football") cat = "football";
       else if (log.type === "running") cat = "running";
+      else if (["basketball", "hiking", "surfing", "tennis"].includes(log.type)) cat = "other_sports";
       else if (log.id === "shoulder_knee_prehab") cat = "prehab";
       else if (log.id === "active_mobility") cat = "mobility";
       else if (log.id === "sand_plyos") cat = "lifting";
@@ -71,7 +95,17 @@ const APEX_ANALYTICS = {
         categoryData[cat].minutes += parseInt(log.duration || 0);
       }
 
-      // Aggregate Muscle Stress
+      // Aggregate checked exercises for lifting workouts
+      if (log.type === "lifting" && log.exercises) {
+        log.exercises.forEach(exName => {
+          const muscleGroup = classifyExercise(exName);
+          if (muscleGroup === "legs") legsExercisesCount++;
+          else if (muscleGroup === "shoulders") shouldersExercisesCount++;
+          else if (muscleGroup === "core") coreExercisesCount++;
+        });
+      }
+
+      // Aggregate Muscle Stress for heatmap
       let logSore = log.soreness;
       if (!logSore && typeof APEX_RECOMMENDER !== "undefined") {
         logSore = APEX_RECOMMENDER.getDefaultSorenessImpact(log);
@@ -100,6 +134,9 @@ const APEX_ANALYTICS = {
 
     // 4. Update Chart.js Workout distribution
     this.renderWorkoutTypeChart(categoryData);
+
+    // 5. Update Chart.js Lifting Muscle Focus Doughnut Chart
+    this.renderLiftingFocusChart(legsExercisesCount, shouldersExercisesCount, coreExercisesCount);
   },
 
   updateSVGHeatmap(shoulders, core, legs, rangeDays) {
@@ -170,8 +207,8 @@ const APEX_ANALYTICS = {
       this.workoutTypeChart.destroy();
     }
 
-    const categories = ["Lifting", "Volleyball", "Football", "Running", "Prehab", "Mobility"];
-    const keys = ["lifting", "volleyball", "football", "running", "prehab", "mobility"];
+    const categories = ["Lifting", "Volleyball", "Football", "Running", "Prehab", "Mobility", "Other Sports"];
+    const keys = ["lifting", "volleyball", "football", "running", "prehab", "mobility", "other_sports"];
     
     const sessionCounts = keys.map(k => categoryData[k].sessions);
     const totalMinutes = keys.map(k => categoryData[k].minutes);
@@ -182,7 +219,8 @@ const APEX_ANALYTICS = {
       "rgba(59, 130, 246, 0.7)", // Football: Blue
       "rgba(16, 185, 129, 0.7)", // Running: Green
       "rgba(168, 85, 247, 0.7)", // Prehab: Purple
-      "rgba(100, 116, 139, 0.7)" // Mobility: Grey
+      "rgba(100, 116, 139, 0.7)", // Mobility: Grey
+      "rgba(6, 182, 212, 0.7)"   // Other Sports: Cyan
     ];
 
     const borderColors = [
@@ -191,7 +229,8 @@ const APEX_ANALYTICS = {
       "#3b82f6",
       "#10b981",
       "#a855f7",
-      "#64748b"
+      "#64748b",
+      "#06b6d4"
     ];
 
     this.workoutTypeChart = new Chart(ctx, {
@@ -275,6 +314,66 @@ const APEX_ANALYTICS = {
             }
           }
         }
+      }
+    });
+  },
+
+  renderLiftingFocusChart(legs, shoulders, core) {
+    const canvas = document.getElementById("chart-lifting-focus");
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    if (this.liftingFocusChart) {
+      this.liftingFocusChart.destroy();
+    }
+
+    const total = legs + shoulders + core;
+
+    this.liftingFocusChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ["Legs", "Shoulders/Upper", "Core/Mobility"],
+        datasets: [{
+          data: [legs, shoulders, core],
+          backgroundColor: [
+            "rgba(16, 185, 129, 0.7)",  // Legs: Green
+            "rgba(255, 94, 0, 0.7)",   // Shoulders: Orange
+            "rgba(245, 158, 11, 0.7)"  // Core: Yellow
+          ],
+          borderColor: [
+            "#10b981",
+            "#ff5e00",
+            "#f59e0b"
+          ],
+          borderWidth: 1.5
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: '#a1a1aa',
+              font: { family: 'Outfit', size: 11 }
+            }
+          },
+          tooltip: {
+            titleFont: { family: 'Outfit' },
+            bodyFont: { family: 'Outfit' },
+            callbacks: {
+              label: function(context) {
+                const val = context.raw || 0;
+                const pct = total > 0 ? ((val / total) * 100).toFixed(0) : 0;
+                return `${context.label}: ${val} exercises (${pct}%)`;
+              }
+            }
+          }
+        },
+        cutout: '60%'
       }
     });
   }

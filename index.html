@@ -194,6 +194,21 @@
             <span>Flag Football</span>
           </button>
         </div>
+      <!-- Next Scheduled Session Widget -->
+      <div id="next-scheduled-card" class="dashboard-card next-scheduled-card hidden">
+        <div class="card-header">
+          <h4>Next Scheduled Session</h4>
+          <span class="badge badge-accent">UPCOMING</span>
+        </div>
+        <div class="card-body">
+          <div class="upcoming-session-info">
+            <span class="upcoming-icon" id="upcoming-session-icon">📅</span>
+            <div class="upcoming-details">
+              <h4 id="upcoming-session-title">--</h4>
+              <p id="upcoming-session-time" class="text-secondary">--</p>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -334,6 +349,13 @@
           <p class="card-description">Number of completed sessions and cumulative active training duration (minutes).</p>
           <div class="chart-container" style="position: relative; height:320px; width:100%;">
             <canvas id="chart-workout-types"></canvas>
+          </div>
+        <!-- Bottom: Chart.js Lifting Focus distribution -->
+        <div class="dashboard-card analytics-card">
+          <h3>Lifting Muscle Focus</h3>
+          <p class="card-description">Distribution of completed exercises across Leg, Shoulder/Upper, and Core muscle groups.</p>
+          <div class="chart-container" style="position: relative; height:320px; width:100%;">
+            <canvas id="chart-lifting-focus"></canvas>
           </div>
         </div>
       </div>

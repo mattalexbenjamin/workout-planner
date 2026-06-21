@@ -56,6 +56,10 @@ const APEX_GCAL = {
   // Mock Calendar Events for Summer 2026
   getMockEvents() {
     return [
+      // Past completed workouts (to test auto-logger)
+      { id: "mock-past-1", title: "Hike at Crowders Mountain", date: "2026-06-18", start: "09:00", end: "12:00", description: "Scenic trail hike" },
+      { id: "mock-past-2", title: "Explosive Athletic Strength A", date: "2026-06-20", start: "07:30", end: "08:30", description: "Gym session" },
+      
       // Week 3 of Summer 2026 (June 21 - June 28)
       { id: "mock-1", title: "Product Sync Meeting", date: "2026-06-22", start: "09:00", end: "10:30", description: "Work meeting" },
       { id: "mock-2", title: "Marketing Review", date: "2026-06-22", start: "14:00", end: "15:00", description: "Work meeting" },
@@ -69,6 +73,7 @@ const APEX_GCAL = {
       { id: "mock-6", title: "Orthodontist Checkup", date: "2026-06-26", start: "14:00", end: "14:45", description: "Health appointment" },
       
       { id: "mock-7", title: "Beach Volleyball Tournament (Coed 4s)", date: "2026-06-27", start: "09:00", end: "16:00", description: "Summer tournament series" },
+      { id: "mock-12", title: "Explosive Athletic Strength A Gym Workout", date: "2026-06-28", start: "08:30", end: "10:00", description: "Gym weightlifting session" },
       
       // Week 4 of Summer 2026 (June 29 - July 5)
       { id: "mock-8", title: "Quarterly Board Meeting", date: "2026-06-29", start: "10:00", end: "16:00", description: "Very busy day" },
@@ -367,5 +372,115 @@ const APEX_GCAL = {
       console.error("Calendar list fetch error:", err);
       if (onError) onError(err);
     });
+  },
+
+  // Local Fuzzy Similarity Engine for Event Classification
+  classifyEventLocal(title, description = "") {
+    const text = (title + " " + description).toLowerCase().replace(/[^\w\s]/g, " ").trim();
+    const stopWords = ["a", "an", "the", "at", "with", "session", "workout", "completed", "class", "training", "practice", "play", "game", "pickup", "match"];
+    const tokens = text.split(/\s+/).filter(word => word.length > 0 && !stopWords.includes(word));
+    
+    if (tokens.length === 0) return null;
+
+    const sports = {
+      volleyball: ["volleyball", "vball", "beach", "sand", "court", "spike", "set", "dig"],
+      football: ["football", "flag", "scrimmage", "route", "catch", "throw"],
+      running: ["running", "jogging", "run", "trail", "sprint", "cardio"],
+      basketball: ["basketball", "hoops", "bball", "court", "dunk", "shoot"],
+      hiking: ["hike", "hiking", "trail", "mountain", "climb", "outdoor"],
+      surfing: ["surf", "surfing", "wave", "ocean", "paddling", "beach"],
+      tennis: ["tennis", "racket", "court", "serve", "match"]
+    };
+
+    const getLevenshteinDistance = (a, b) => {
+      const matrix = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+      for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
+      for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
+
+      for (let i = 1; i <= a.length; i++) {
+        for (let j = 1; j <= b.length; j++) {
+          if (a[i - 1] === b[j - 1]) {
+            matrix[i][j] = matrix[i - 1][j - 1];
+          } else {
+            matrix[i][j] = Math.min(
+              matrix[i - 1][j] + 1,
+              matrix[i][j - 1] + 1,
+              matrix[i - 1][j - 1] + 1
+            );
+          }
+        }
+      }
+      return matrix[a.length][b.length];
+    };
+
+    const isFuzzyMatch = (word, targetList) => {
+      return targetList.some(target => {
+        if (word === target) return true;
+        const maxDist = target.length > 5 ? 2 : 1;
+        return getLevenshteinDistance(word, target) <= maxDist;
+      });
+    };
+
+    const sportScores = {};
+    Object.keys(sports).forEach(sportName => {
+      let matches = 0;
+      tokens.forEach(token => {
+        if (isFuzzyMatch(token, sports[sportName])) matches += 1;
+      });
+      sportScores[sportName] = matches / Math.max(1, tokens.length);
+    });
+
+    const templates = {
+      sand_plyos: ["plyos", "vertical", "boost", "jumping", "jump", "sand", "plyometrics"],
+      athletic_strength_a: ["strength", "cleans", "front", "squats", "overhead", "press", "power"],
+      athletic_strength_b: ["shred", "power", "deadlifts", "bulgarian", "split", "pullups", "bench"],
+      saq_agility: ["speed", "agility", "shuttle", "cone", "sprint", "starts", "deceleration"],
+      shoulder_knee_prehab: ["shoulder", "knee", "armor", "prehab", "rehab", "rotator", "tibialis"],
+      active_mobility: ["mobility", "stretch", "flow", "foam", "roll", "flexibility"],
+      express_circuit: ["express", "circuit", "metabolic", "burpees", "squat", "jumps"]
+    };
+
+    const templateScores = {};
+    Object.keys(templates).forEach(tempId => {
+      let matches = 0;
+      tokens.forEach(token => {
+        if (isFuzzyMatch(token, templates[tempId])) matches += 1;
+      });
+      templateScores[tempId] = matches / Math.max(1, tokens.length);
+    });
+
+    let bestSport = null;
+    let bestSportScore = 0;
+    Object.keys(sportScores).forEach(s => {
+      if (sportScores[s] > bestSportScore) {
+        bestSportScore = sportScores[s];
+        bestSport = s;
+      }
+    });
+
+    let bestTemplate = null;
+    let bestTemplateScore = 0;
+    Object.keys(templateScores).forEach(t => {
+      if (templateScores[t] > bestTemplateScore) {
+        bestTemplateScore = templateScores[t];
+        bestTemplate = t;
+      }
+    });
+
+    const confidenceThreshold = 0.25;
+
+    if (bestTemplateScore > bestSportScore && bestTemplateScore >= confidenceThreshold) {
+      return { type: "lifting", id: bestTemplate };
+    } else if (bestSportScore >= confidenceThreshold) {
+      return { type: bestSport, id: bestSport + "_session" };
+    }
+
+    const generalWorkoutTerms = ["gym", "lifting", "weightlifting", "workout", "train", "training", "exercise", "wod"];
+    const hasGeneralWorkout = tokens.some(token => isFuzzyMatch(token, generalWorkoutTerms));
+    if (hasGeneralWorkout) {
+      return { type: "lifting", id: "custom_lift" };
+    }
+
+    return null;
   }
 };

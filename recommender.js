@@ -92,6 +92,10 @@ const APEX_RECOMMENDER = {
     if (log.type === 'volleyball') return { legs: 3.5, shoulders: 4.0, core: 2.5, fatigue: 4.0 };
     if (log.type === 'football') return { legs: 4.0, shoulders: 2.0, core: 3.0, fatigue: 4.0 };
     if (log.type === 'running') return { legs: 3.5, shoulders: 1.0, core: 2.0, fatigue: 3.0 };
+    if (log.type === 'basketball') return { legs: 4.0, shoulders: 2.0, core: 2.5, fatigue: 3.5 };
+    if (log.type === 'hiking') return { legs: 3.5, shoulders: 1.0, core: 2.0, fatigue: 3.0 };
+    if (log.type === 'surfing') return { legs: 2.0, shoulders: 4.5, core: 3.0, fatigue: 3.5 };
+    if (log.type === 'tennis') return { legs: 3.5, shoulders: 3.5, core: 2.5, fatigue: 3.5 };
     
     return { legs: 1.0, shoulders: 1.0, core: 1.0, fatigue: 1.0 };
   },
@@ -106,7 +110,7 @@ const APEX_RECOMMENDER = {
     const soreness = this.calculateSoreness(todayStr, loggedWorkouts);
 
     // 1. Analyze Calendar Events (Keywords)
-    const keywordsSport = ["volleyball", "vball", "beach", "sand", "football", "flag", "game", "match", "tournament", "scrimmage"];
+    const keywordsSport = ["volleyball", "vball", "beach", "sand", "football", "flag", "game", "match", "tournament", "scrimmage", "basketball", "bball", "hike", "hiking", "surf", "surfing", "tennis"];
     const keywordsBusy = ["meeting", "work", "busy", "flight", "travel", "exam", "conference", "interview"];
 
     // Filter events
@@ -150,7 +154,7 @@ const APEX_RECOMMENDER = {
     const historyLifting = historyLast10Days.filter(w => w.type === 'lifting' || w.id?.includes('strength'));
     const historyPlyos = historyLast10Days.filter(w => w.id === 'sand_plyos');
     const historyAgility = historyLast10Days.filter(w => w.id === 'saq_agility');
-    const historySports = loggedWorkouts.filter(w => (w.type === 'volleyball' || w.type === 'football') && w.date === yesterdayStr);
+    const historySports = loggedWorkouts.filter(w => (w.type === 'volleyball' || w.type === 'football' || w.type === 'running' || w.type === 'basketball' || w.type === 'hiking' || w.type === 'surfing' || w.type === 'tennis') && w.date === yesterdayStr);
 
     // 3. Rule Engine Execution
     
