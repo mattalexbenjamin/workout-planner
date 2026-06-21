@@ -1,0 +1,27 @@
+{
+  "short_name": "APEX",
+  "name": "APEX Summer '26 Recommender",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    },
+    {
+      "src": "icons/apple-icon-180.png",
+      "type": "image/png",
+      "sizes": "180x180",
+      "purpose": "any"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#0a0a0c",
+  "display": "standalone",
+  "theme_color": "#ff5e00",
+  "orientation": "portrait"
+}

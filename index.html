@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Apex Summer 26 | Athletic Recommender & Tracker</title>
+  <meta name="description" content="Adaptive workout recommender and scheduler for weightlifting, beach volleyball, flag football, and running.">
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- PWA manifest and iOS support -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="APEX Summer">
+  <link rel="apple-touch-icon" href="icons/apple-icon-180.png">
+  <meta name="theme-color" content="#ff5e00">
+
+  <!-- Google Fonts: Outfit for sporty/modern aesthetic -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <!-- Google Identity Services Library for OAuth Login -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <span class="brand-title">APEX</span>
+        <span class="brand-subtitle">SUMMER '26</span>
+      </div>
+      <div class="header-actions">
+        <div id="gcal-status-badge" class="status-badge disconnected">
+          <span class="status-dot"></span>
+          <span id="gcal-status-text">Calendar</span>
+        </div>
+        <div id="gdrive-status-badge" class="status-badge disconnected">
+          <span class="status-dot"></span>
+          <span id="gdrive-status-text">Cloud</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="app-content">
+
+    <!-- TAB 1: TODAY DASHBOARD -->
+    <section id="tab-today" class="tab-pane active">
+      <div class="welcome-banner">
+        <h2 id="today-date-str">Sunday, June 21, 2026</h2>
+        <p class="quote">"Explosiveness is built in the off-season. Shredded is built in the kitchen."</p>
+      </div>
+
+      <!-- Recommendation Card -->
+      <div class="dashboard-card recommendation-card highlighted">
+        <div class="card-header">
+          <span class="badge badge-accent">RECOMMENDED FOR TODAY</span>
+          <h3 id="recommendation-title">Analyzing Calendar...</h3>
+        </div>
+        <div class="card-body">
+          <p id="recommendation-reason" class="text-secondary">Syncing with your calendar and recovery stats to find the perfect session.</p>
+          <div id="recommendation-details" class="workout-details-box hidden">
+            <!-- Exercise list injected here -->
+          </div>
+        </div>
+        <div class="card-footer">
+          <button id="btn-start-workout" class="btn btn-primary btn-full hidden">Start Recommended Workout</button>
+          <button id="btn-sync-cal-quick" class="btn btn-secondary btn-full">Sync Calendar to Load Workout</button>
+        </div>
+      </div>
+
+      <!-- Calendar Conflict Info (if any) -->
+      <div id="calendar-context-card" class="dashboard-card hidden">
+        <div class="card-header">
+          <h4>Today's Schedule Impact</h4>
+        </div>
+        <div class="card-body">
+          <ul id="today-events-list" class="context-events-list">
+            <!-- Dynamic events -->
+          </ul>
+        </div>
+      </div>
+
+      <!-- Muscle Soreness & Recovery Widget -->
+      <div class="dashboard-card recovery-card">
+        <div class="card-header">
+          <h4>Muscle Soreness & Recovery</h4>
+          <span class="badge badge-accent" id="recovery-status-badge">Feeling Fresh</span>
+        </div>
+        <div class="card-body grid-2-col">
+          <div class="soreness-meters">
+            <div class="soreness-meter-item">
+              <div class="soreness-label-row">
+                <span class="metric-label">Legs</span>
+                <span class="soreness-value-text" id="soreness-val-legs">1.0/5</span>
+              </div>
+              <div class="progress-bar-container">
+                <div id="soreness-bar-legs" class="progress-fill soreness-fill green" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="soreness-meter-item">
+              <div class="soreness-label-row">
+                <span class="metric-label">Shoulders</span>
+                <span class="soreness-value-text" id="soreness-val-shoulders">1.0/5</span>
+              </div>
+              <div class="progress-bar-container">
+                <div id="soreness-bar-shoulders" class="progress-fill soreness-fill green" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="soreness-meter-item">
+              <div class="soreness-label-row">
+                <span class="metric-label">Core</span>
+                <span class="soreness-value-text" id="soreness-val-core">1.0/5</span>
+              </div>
+              <div class="progress-bar-container">
+                <div id="soreness-bar-core" class="progress-fill soreness-fill green" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+          <div class="metric-stats">
+            <div class="mini-stat">
+              <span class="stat-label">Overall Fatigue</span>
+              <span class="stat-value" id="soreness-val-fatigue">1.0 / 5</span>
+            </div>
+            <div class="mini-stat">
+              <span class="stat-label">Active Recovery Boost</span>
+              <span class="stat-value text-success">-1.5 / flow</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Shredding Goals Widget -->
+      <div class="dashboard-card shred-card">
+        <div class="card-header">
+          <h4>Shredding Goals</h4>
+          <span class="badge badge-success" id="shred-deficit-badge">Caloric Deficit</span>
+        </div>
+        <div class="card-body grid-2-col">
+          <div class="metric-progress">
+            <span class="metric-label">Weight Tracker</span>
+            <div class="metric-value">
+              <span id="shred-current-weight">--</span> lbs
+              <span class="target-subtext">Target: <span id="shred-target-weight">--</span> lbs</span>
+            </div>
+            <div class="progress-bar-container">
+              <div id="weight-progress-fill" class="progress-fill" style="width: 0%"></div>
+            </div>
+          </div>
+          <div class="metric-stats">
+            <div class="mini-stat">
+              <span class="stat-label">Daily Calories Target</span>
+              <span class="stat-value" id="shred-calories">-- kcal</span>
+            </div>
+            <div class="mini-stat">
+              <span class="stat-label">Daily Protein Target</span>
+              <span class="stat-value" id="shred-protein">-- g</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Action Panel -->
+      <div class="dashboard-card quick-log-card">
+        <div class="card-header">
+          <h4>Log Workout or Activity</h4>
+        </div>
+        <div class="card-body quick-actions-grid">
+          <button class="quick-log-btn" data-type="lifting">
+            <span class="icon-circle text-orange">🏋️‍♂️</span>
+            <span>Weightlifting</span>
+          </button>
+          <button class="quick-log-btn" data-type="volleyball">
+            <span class="icon-circle text-yellow">🏐</span>
+            <span>Volleyball</span>
+          </button>
+          <button class="quick-log-btn" data-type="running">
+            <span class="icon-circle text-green">🏃‍♂️</span>
+            <span>Running</span>
+          </button>
+          <button class="quick-log-btn" data-type="football">
+            <span class="icon-circle text-blue">🏈</span>
+            <span>Flag Football</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: CALENDAR TIMELINE -->
+    <section id="tab-calendar" class="tab-pane">
+      <div class="section-header">
+        <h2>Summer '26 Schedule</h2>
+        <p class="text-secondary">Your 17-week campaign (June - September 2026)</p>
+      </div>
+
+      <!-- Calendar Filters -->
+      <div class="calendar-controls">
+        <button id="btn-cal-prev" class="btn btn-icon">◀</button>
+        <span id="calendar-week-range" class="week-label">Week 1: Jun 1 - Jun 7</span>
+        <button id="btn-cal-next" class="btn btn-icon">▶</button>
+      </div>
+
+      <!-- Calendar Grid -->
+      <div id="calendar-weekly-grid" class="weekly-grid">
+        <!-- Mon-Sun cards will be dynamically injected here -->
+      </div>
+    </section>
+
+    <!-- TAB 3: WORKOUT LIBRARY -->
+    <section id="tab-library" class="tab-pane">
+      <div class="section-header">
+        <h2>Workout Templates</h2>
+        <p class="text-secondary">Select a program to view exercises or start manually</p>
+      </div>
+
+      <!-- Library Categories -->
+      <div class="filter-pills">
+        <button class="pill active" data-category="all">All</button>
+        <button class="pill" data-category="strength">Lifting</button>
+        <button class="pill" data-category="explosive">Sand Plyos</button>
+        <button class="pill" data-category="speed">SAQ Agility</button>
+        <button class="pill" data-category="prehab">Shoulder/Knee</button>
+        <button class="pill" data-category="recovery">Recovery</button>
+      </div>
+
+      <!-- Library Grid -->
+      <div id="library-grid" class="workout-grid">
+        <!-- Injected dynamically from workouts.js -->
+      </div>
+    </section>
+
+    <!-- TAB 4: HISTORY -->
+    <section id="tab-history" class="tab-pane">
+      <div class="section-header">
+        <h2>Your Journey Log</h2>
+        <p class="text-secondary">Review your consistency and athletic sessions</p>
+      </div>
+
+      <!-- Summary Stats Banner -->
+      <div class="stats-banner">
+        <div class="stat-box">
+          <span class="stat-num" id="stat-total-workouts">0</span>
+          <span class="stat-lbl">Total Logged</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-num text-yellow" id="stat-vball-sessions">0</span>
+          <span class="stat-lbl">Volleyball</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-num text-blue" id="stat-football-sessions">0</span>
+          <span class="stat-lbl">Football</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-num text-orange" id="stat-lifting-sessions">0</span>
+          <span class="stat-lbl">Lifts</span>
+        </div>
+      </div>
+
+      <!-- Logged Events List -->
+      <div class="history-list-container">
+        <h3>Activity Log</h3>
+        <div id="history-list" class="history-list">
+          <div class="empty-state">No activities logged yet. Start today!</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: SETTINGS -->
+    <section id="tab-settings" class="tab-pane">
+      <div class="section-header">
+        <h2>Application Settings</h2>
+        <p class="text-secondary">Configure credentials, goals, and test functions</p>
+      </div>
+
+      <!-- Google Integration Settings Card -->
+      <div class="settings-card">
+        <h3>Google Cloud & Calendar Integration</h3>
+        <p class="card-description">Synchronize your workouts and calendar. Logging in will sync your local logs and targets directly to your personal Google Drive, backing up your data and keeping multiple devices in sync automatically.</p>
+        
+        <div class="form-group">
+          <label for="gcal-client-id">Google Client ID</label>
+          <input type="text" id="gcal-client-id" placeholder="1234567890-abc123xyz.apps.googleusercontent.com" class="form-input">
+          <small class="form-help">Create a client ID in the <a href="https://console.cloud.google.com" target="_blank" rel="noopener">Google Cloud Console</a>. Be sure to authorize both <strong>Calendar</strong> and <strong>Drive</strong> scopes.</small>
+        </div>
+
+        <div class="settings-actions">
+          <button id="btn-save-gcal" class="btn btn-secondary">Save Client ID</button>
+          <button id="btn-login-gcal" class="btn btn-primary">Sign in with Google</button>
+          <button id="btn-logout-gcal" class="btn btn-danger hidden">Sign Out</button>
+        </div>
+        
+        <div id="drive-sync-panel" class="drive-sync-panel">
+          <span id="settings-drive-sync-time" class="text-secondary" style="font-size: 0.8rem; font-weight: 600;">Last Cloud Sync: Never</span>
+          <button id="btn-sync-drive" class="btn btn-secondary btn-sm" style="width: auto; padding: 4px 12px; font-size: 0.75rem;">Sync Now</button>
+        </div>
+      </div>
+
+      <!-- Mock Calendar Control Card -->
+      <div class="settings-card highlight-card">
+        <div class="card-split">
+          <div>
+            <h3>Mock Google Calendar Mode</h3>
+            <p class="card-description text-secondary">No API credentials? Toggle this on to inject demo events (like Volleyball tournament, busy workdays, flag football games) to test the recommendation engine's responsiveness.</p>
+          </div>
+          <div class="toggle-switch-container">
+            <label class="switch">
+              <input type="checkbox" id="gcal-mock-toggle">
+              <span class="slider round"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Personal Targets Card -->
+      <div class="settings-card">
+        <h3>Summer Targets & Deficit Goals</h3>
+        
+        <div class="grid-2-col">
+          <div class="form-group">
+            <label for="goal-start-weight">Starting Weight (lbs)</label>
+            <input type="number" id="goal-start-weight" class="form-input" value="195">
+          </div>
+          <div class="form-group">
+            <label for="goal-target-weight">Target Weight (lbs)</label>
+            <input type="number" id="goal-target-weight" class="form-input" value="180">
+          </div>
+          <div class="form-group">
+            <label for="goal-current-weight">Current Weight (lbs)</label>
+            <input type="number" id="goal-current-weight" class="form-input" value="193">
+          </div>
+          <div class="form-group">
+            <label for="goal-calories">Daily Calorie Target (kcal)</label>
+            <input type="number" id="goal-calories" class="form-input" value="2200">
+          </div>
+          <div class="form-group">
+            <label for="goal-protein">Daily Protein Target (g)</label>
+            <input type="number" id="goal-protein" class="form-input" value="180">
+          </div>
+          <div class="form-group">
+            <label for="goal-frequency">Target Lift Days / Week</label>
+            <select id="goal-frequency" class="form-input">
+              <option value="2">2 Days</option>
+              <option value="3" selected>3 Days</option>
+              <option value="4">4 Days</option>
+            </select>
+          </div>
+        </div>
+
+        <button id="btn-save-goals" class="btn btn-secondary btn-full">Save Fitness Targets</button>
+      </div>
+
+      <!-- Local Backup Card -->
+      <div class="settings-card">
+        <h3>Storage & Data Management</h3>
+        <p class="card-description">Export your complete summer workout history to a JSON file, or restore from a backup.</p>
+        
+        <div class="settings-actions flex-wrap">
+          <button id="btn-export-backup" class="btn btn-secondary">Export JSON Backup</button>
+          <label for="btn-import-backup-file" class="btn btn-secondary text-center cursor-pointer">
+            Import JSON Backup
+            <input type="file" id="btn-import-backup-file" accept=".json" class="hidden">
+          </label>
+          <button id="btn-clear-data" class="btn btn-danger">Clear All Data</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Logger Modals -->
+  
+  <!-- Log Workout Modal -->
+  <div id="modal-log-workout" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-workout-title">Log Workout</h3>
+        <span class="modal-close">&times;</span>
+      </div>
+      <form id="form-log-workout">
+        <input type="hidden" id="log-workout-id">
+        <input type="hidden" id="log-workout-type">
+        
+        <div class="form-group">
+          <label for="log-workout-date">Date Completed</label>
+          <input type="date" id="log-workout-date" class="form-input" required>
+        </div>
+
+        <div class="form-group">
+          <label>Exercises Completed</label>
+          <div id="modal-exercises-list" class="modal-exercises-list">
+            <!-- Exercise checkboxes/inputs injected here -->
+          </div>
+        </div>
+
+        <div class="grid-2-col">
+          <div class="form-group">
+            <label for="log-workout-duration">Duration (minutes)</label>
+            <input type="number" id="log-workout-duration" class="form-input" value="60" required>
+          </div>
+          <div class="form-group">
+            <label for="log-workout-intensity">Intensity (RPE 1-10)</label>
+            <select id="log-workout-intensity" class="form-input">
+              <option value="5">5 - Light Active</option>
+              <option value="6">6 - Moderate</option>
+              <option value="7">7 - Hard Strength</option>
+              <option value="8" selected>8 - Vigorous</option>
+              <option value="9">9 - Maximum Effort</option>
+              <option value="10">10 - Exhausting</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Post-Session Soreness & Fatigue</label>
+          <div class="soreness-sliders-grid">
+            <div class="slider-group">
+              <label for="log-workout-sore-legs">Legs: <span id="lbl-workout-sore-legs">1</span>/5</label>
+              <input type="range" id="log-workout-sore-legs" min="1" max="5" step="1" value="1" class="form-input slider-input">
+            </div>
+            <div class="slider-group">
+              <label for="log-workout-sore-shoulders">Shoulders: <span id="lbl-workout-sore-shoulders">1</span>/5</label>
+              <input type="range" id="log-workout-sore-shoulders" min="1" max="5" step="1" value="1" class="form-input slider-input">
+            </div>
+            <div class="slider-group">
+              <label for="log-workout-sore-core">Core: <span id="lbl-workout-sore-core">1</span>/5</label>
+              <input type="range" id="log-workout-sore-core" min="1" max="5" step="1" value="1" class="form-input slider-input">
+            </div>
+            <div class="slider-group">
+              <label for="log-workout-sore-fatigue">Fatigue: <span id="lbl-workout-sore-fatigue">1</span>/5</label>
+              <input type="range" id="log-workout-sore-fatigue" min="1" max="5" step="1" value="1" class="form-input slider-input">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="log-workout-notes">Session Notes / Stats</label>
+          <textarea id="log-workout-notes" class="form-input" rows="3" placeholder="Soreness level, weight lifted, speed, sets, etc."></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Session</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Quick Log Sport Modal -->
+  <div id="modal-log-sport" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-sport-title">Log Sport Session</h3>
+        <span class="modal-close">&times;</span>
+      </div>
+      <form id="form-log-sport">
+        <input type="hidden" id="log-sport-type">
+        
+        <div class="form-group">
+          <label for="log-sport-date">Date Completed</label>
+          <input type="date" id="log-sport-date" class="form-input" required>
+        </div>
+
+        <div class="grid-2-col">
+          <div class="form-group">
+            <label for="log-sport-duration">Duration (minutes)</label>
+            <input type="number" id="log-sport-duration" class="form-input" value="90" required>
+          </div>
+          <div class="form-group">
+            <label for="log-sport-intensity">Intensity (RPE 1-10)</label>
+            <select id="log-sport-intensity" class="form-input">
+              <option value="5">5 - Active Play</option>
+              <option value="6">6 - Steady State</option>
+              <option value="7" selected>7 - Match/Practice</option>
+              <option value="8">8 - Highly Competitive</option>
+              <option value="9">9 - Peak Tournament Play</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Post-Session Soreness & Fatigue</label>
+          <div class="soreness-sliders-grid">
+            <div class="slider-group">
+              <label for="log-sport-sore-legs">Legs: <span id="lbl-sport-sore-legs">1</span>/5</label>
+              <input type="range" id="log-sport-sore-legs" min="1" max="5" step="1" value="1" class="form-input slider-input">
+            </div>
+            <div class="slider-group">
+              <label for="log-sport-sore-shoulders">Shoulders: <span id="lbl-sport-sore-shoulders">1</span>/5</label>
+              <input type="range" id="log-sport-sore-shoulders" min="1" max="5" step="1" value="1" class="form-input slider-input">
+            </div>
+            <div class="slider-group">
+              <label for="log-sport-sore-core">Core: <span id="lbl-sport-sore-core">1</span>/5</label>
+              <input type="range" id="log-sport-sore-core" min="1" max="5" step="1" value="1" class="form-input slider-input">
+            </div>
+            <div class="slider-group">
+              <label for="log-sport-sore-fatigue">Fatigue: <span id="lbl-sport-sore-fatigue">1</span>/5</label>
+              <input type="range" id="log-sport-sore-fatigue" min="1" max="5" step="1" value="1" class="form-input slider-input">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="log-sport-notes">Activity Notes (e.g. Win/Loss, sand temperature, turf vs grass)</label>
+          <textarea id="log-sport-notes" class="form-input" rows="3" placeholder="Volleyball games played, running distance, football touchdowns, etc."></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Activity</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation Bar -->
+  <nav class="app-nav">
+    <div class="nav-container">
+      <button class="nav-item active" data-tab="tab-today">
+        <svg viewBox="0 0 24 24" width="24" height="24">
+          <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z" fill="currentColor"/>
+        </svg>
+        <span>Today</span>
+      </button>
+      <button class="nav-item" data-tab="tab-calendar">
+        <svg viewBox="0 0 24 24" width="24" height="24">
+          <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z" fill="currentColor"/>
+        </svg>
+        <span>Calendar</span>
+      </button>
+      <button class="nav-item" data-tab="tab-library">
+        <svg viewBox="0 0 24 24" width="24" height="24">
+          <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z" fill="currentColor"/>
+        </svg>
+        <span>Library</span>
+      </button>
+      <button class="nav-item" data-tab="tab-history">
+        <svg viewBox="0 0 24 24" width="24" height="24">
+          <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" fill="currentColor"/>
+        </svg>
+        <span>History</span>
+      </button>
+      <button class="nav-item" data-tab="tab-settings">
+        <svg viewBox="0 0 24 24" width="24" height="24">
+          <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/>
+        </svg>
+        <span>Settings</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Script entries will load in order -->
+  <script src="workouts.js"></script>
+  <script src="recommender.js"></script>
+  <script src="gcal.js"></script>
+  <script src="app.js"></script>
+  
+  <!-- Register PWA Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('Service Worker registered successfully:', reg.scope))
+          .catch(err => console.warn('Service Worker registration failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>

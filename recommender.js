@@ -1,0 +1,334 @@
+// APEX SMART HYBRID RECOMMENDATION ENGINE
+
+const APEX_RECOMMENDER = {
+  // Helper to format Date object as YYYY-MM-DD
+  formatDateKey(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  },
+
+  // Add days to a date string and return YYYY-MM-DD
+  addDays(dateStr, days) {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    return this.formatDateKey(d);
+  },
+
+  // Dynamic Soreness Simulation
+  calculateSoreness(dateStr, loggedWorkouts) {
+    const runningState = { legs: 1.0, shoulders: 1.0, core: 1.0, fatigue: 1.0 };
+    
+    // Sort logged workouts chronologically (oldest first)
+    const sortedLogs = [...loggedWorkouts]
+      .filter(w => w.date <= dateStr)
+      .sort((a, b) => new Date(a.date + 'T00:00:00') - new Date(b.date + 'T00:00:00'));
+      
+    if (sortedLogs.length === 0) {
+      return runningState;
+    }
+    
+    // Find the first date we care about
+    let currentDate = new Date(sortedLogs[0].date + 'T00:00:00');
+    
+    // Helper to format Date back to YYYY-MM-DD
+    const toKey = (d) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+    
+    // Simulate day-by-day up to dateStr
+    while (toKey(currentDate) <= dateStr) {
+      const curKey = toKey(currentDate);
+      
+      // 1. Decay at the START of the day (except on the first log day where we initialize)
+      if (curKey !== sortedLogs[0].date) {
+        runningState.legs = Math.max(1.0, runningState.legs - 1.0);
+        runningState.shoulders = Math.max(1.0, runningState.shoulders - 1.0);
+        runningState.core = Math.max(1.0, runningState.core - 1.0);
+        runningState.fatigue = Math.max(1.0, runningState.fatigue - 1.0);
+      }
+      
+      // 2. Process logs on this day
+      const dayLogs = sortedLogs.filter(w => w.date === curKey);
+      dayLogs.forEach(log => {
+        // If it's a mobility flow, apply recovery boost first
+        if (log.id === 'active_mobility') {
+          runningState.legs = Math.max(1.0, runningState.legs - 1.5);
+          runningState.shoulders = Math.max(1.0, runningState.shoulders - 1.5);
+          runningState.core = Math.max(1.0, runningState.core - 1.5);
+          runningState.fatigue = Math.max(1.0, runningState.fatigue - 1.5);
+        }
+        
+        // Retrieve soreness values (user-logged or default fallback)
+        const logSoreness = log.soreness || this.getDefaultSorenessImpact(log);
+        
+        // Update running state as the max of current soreness and logged soreness
+        runningState.legs = Math.max(runningState.legs, Number(logSoreness.legs || 1.0));
+        runningState.shoulders = Math.max(runningState.shoulders, Number(logSoreness.shoulders || 1.0));
+        runningState.core = Math.max(runningState.core, Number(logSoreness.core || 1.0));
+        runningState.fatigue = Math.max(runningState.fatigue, Number(logSoreness.fatigue || 1.0));
+      });
+      
+      // Advance by 1 day
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    return runningState;
+  },
+  
+  getDefaultSorenessImpact(log) {
+    if (log.id === 'sand_plyos') return { legs: 4.0, shoulders: 1.0, core: 2.0, fatigue: 3.0 };
+    if (log.id === 'athletic_strength_a') return { legs: 3.5, shoulders: 3.0, core: 2.5, fatigue: 3.5 };
+    if (log.id === 'athletic_strength_b') return { legs: 4.0, shoulders: 3.5, core: 3.0, fatigue: 3.5 };
+    if (log.id === 'saq_agility') return { legs: 3.5, shoulders: 1.0, core: 2.0, fatigue: 3.0 };
+    if (log.id === 'shoulder_knee_prehab') return { legs: 1.5, shoulders: 2.0, core: 1.0, fatigue: 2.0 };
+    if (log.id === 'express_circuit') return { legs: 3.0, shoulders: 2.5, core: 2.5, fatigue: 3.0 };
+    if (log.id === 'active_mobility') return { legs: 1.0, shoulders: 1.0, core: 1.0, fatigue: 1.0 };
+    
+    if (log.type === 'volleyball') return { legs: 3.5, shoulders: 4.0, core: 2.5, fatigue: 4.0 };
+    if (log.type === 'football') return { legs: 4.0, shoulders: 2.0, core: 3.0, fatigue: 4.0 };
+    if (log.type === 'running') return { legs: 3.5, shoulders: 1.0, core: 2.0, fatigue: 3.0 };
+    
+    return { legs: 1.0, shoulders: 1.0, core: 1.0, fatigue: 1.0 };
+  },
+
+  // Core Recommendation Function
+  getRecommendation(dateStr, loggedWorkouts, calendarEvents, goals) {
+    const todayStr = dateStr;
+    const tomorrowStr = this.addDays(todayStr, 1);
+    const yesterdayStr = this.addDays(todayStr, -1);
+
+    // Calculate current soreness levels
+    const soreness = this.calculateSoreness(todayStr, loggedWorkouts);
+
+    // 1. Analyze Calendar Events (Keywords)
+    const keywordsSport = ["volleyball", "vball", "beach", "sand", "football", "flag", "game", "match", "tournament", "scrimmage"];
+    const keywordsBusy = ["meeting", "work", "busy", "flight", "travel", "exam", "conference", "interview"];
+
+    // Filter events
+    const todayEvents = calendarEvents.filter(e => e.date === todayStr);
+    const tomorrowEvents = calendarEvents.filter(e => e.date === tomorrowStr);
+
+    const hasSportToday = todayEvents.some(e => 
+      keywordsSport.some(kw => e.title.toLowerCase().includes(kw))
+    );
+    const hasSportTomorrow = tomorrowEvents.some(e => 
+      keywordsSport.some(kw => e.title.toLowerCase().includes(kw))
+    );
+
+    // Sum busy durations in hours
+    let todayBusyHours = 0;
+    todayEvents.forEach(e => {
+      const isBusyEvent = keywordsBusy.some(kw => e.title.toLowerCase().includes(kw));
+      if (isBusyEvent && e.start && e.end) {
+        const start = new Date(`${todayStr}T${e.start}`);
+        const end = new Date(`${todayStr}T${e.end}`);
+        const diffMs = end - start;
+        if (diffMs > 0) {
+          todayBusyHours += diffMs / (1000 * 60 * 60);
+        }
+      }
+    });
+
+    // 2. Analyze Logged History
+    const historyLast10Days = loggedWorkouts.filter(w => {
+      const wDate = new Date(w.date + 'T00:00:00');
+      const tDate = new Date(todayStr + 'T00:00:00');
+      const diffTime = tDate - wDate;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays >= 0 && diffDays <= 10;
+    });
+
+    const didWorkoutYesterday = loggedWorkouts.some(w => w.date === yesterdayStr);
+    const didWorkoutToday = loggedWorkouts.some(w => w.date === todayStr);
+
+    // Categorized history
+    const historyLifting = historyLast10Days.filter(w => w.type === 'lifting' || w.id?.includes('strength'));
+    const historyPlyos = historyLast10Days.filter(w => w.id === 'sand_plyos');
+    const historyAgility = historyLast10Days.filter(w => w.id === 'saq_agility');
+    const historySports = loggedWorkouts.filter(w => (w.type === 'volleyball' || w.type === 'football') && w.date === yesterdayStr);
+
+    // 3. Rule Engine Execution
+    
+    // Rule 0: If they already completed a workout TODAY
+    if (didWorkoutToday) {
+      return {
+        workoutId: "active_mobility",
+        name: "Full Body Mobility Flow",
+        reason: "You already crushed a session today! Keep the momentum going with a light mobility flow to speed up recovery.",
+        impactEvents: []
+      };
+    }
+
+    // NEW Rule Fatigue: Overall Fatigue is High (>= 4.0)
+    if (soreness.fatigue >= 4.0) {
+      return {
+        workoutId: "active_mobility",
+        name: "Full Body Mobility Flow",
+        reason: `Your overall fatigue is high (${soreness.fatigue.toFixed(1)}/5). Rather than pushing through exhaustion, we suggest this mobility flow to recover your nervous system and muscles.`,
+        impactEvents: []
+      };
+    }
+
+    // Rule 1: Game Day Today
+    if (hasSportToday) {
+      const sportEvent = todayEvents.find(e => keywordsSport.some(kw => e.title.toLowerCase().includes(kw)));
+      return {
+        workoutId: "shoulder_knee_prehab",
+        name: "Volleyball Shoulder & Knee Armor",
+        reason: `You have a sport activity today (${sportEvent.title}). To protect your joints and prevent injury, we recommend this prehab activation rather than heavy training.`,
+        impactEvents: [sportEvent]
+      };
+    }
+
+    // Rule 2: Game Tomorrow (Avoid fatiguing lower body)
+    if (hasSportTomorrow) {
+      const sportEventTomorrow = tomorrowEvents.find(e => keywordsSport.some(kw => e.title.toLowerCase().includes(kw)));
+      return {
+        workoutId: "shoulder_knee_prehab",
+        name: "Volleyball Shoulder & Knee Armor",
+        reason: `You have a game/play scheduled tomorrow (${sportEventTomorrow.title}). We're skipping heavy leg work and jumps today to keep your muscles fresh, explosive, and fatigue-free for tomorrow.`,
+        impactEvents: [sportEventTomorrow]
+      };
+    }
+
+    // Rule 3: Very Busy Day Today (Recommend express circuit)
+    if (todayBusyHours >= 5) {
+      const busyEvents = todayEvents.filter(e => keywordsBusy.some(kw => e.title.toLowerCase().includes(kw)));
+      return {
+        workoutId: "express_circuit",
+        name: "Express 15-Min Explosive Circuit",
+        reason: `Your calendar is packed with ${todayBusyHours.toFixed(1)} hours of busy events today. Here is an express workout to keep your metabolic rate up in just 15 minutes.`,
+        impactEvents: busyEvents
+      };
+    }
+
+    // NEW Rule Legs Sore: Legs Soreness is High (>= 3.0)
+    if (soreness.legs >= 3.0) {
+      if (soreness.shoulders < 3.0) {
+        return {
+          workoutId: "shoulder_knee_prehab",
+          name: "Volleyball Shoulder & Knee Armor",
+          reason: `Your legs are sore (${soreness.legs.toFixed(1)}/5). We're avoiding jumps, sprint starts, and heavy squats today. Let's redirect work to upper body prehab and rotator cuff stability.`,
+          impactEvents: []
+        };
+      } else {
+        return {
+          workoutId: "active_mobility",
+          name: "Full Body Mobility Flow",
+          reason: `Both your legs (${soreness.legs.toFixed(1)}/5) and shoulders (${soreness.shoulders.toFixed(1)}/5) are sore today. We suggest focusing purely on full body mobility and stretching.`,
+          impactEvents: []
+        };
+      }
+    }
+
+    // NEW Rule Shoulders Sore: Shoulders Soreness is High (>= 3.0)
+    if (soreness.shoulders >= 3.0) {
+      if (soreness.legs < 3.0) {
+        return {
+          workoutId: "saq_agility",
+          name: "Football Speed & Agility",
+          reason: `Your shoulders are sore (${soreness.shoulders.toFixed(1)}/5). We're bypassing overhead pushes and heavy lifts today. Let's do speed and agility drills on turf to keep your conditioning high.`,
+          impactEvents: []
+        };
+      } else {
+        return {
+          workoutId: "active_mobility",
+          name: "Full Body Mobility Flow",
+          reason: `Both shoulders (${soreness.shoulders.toFixed(1)}/5) and legs (${soreness.legs.toFixed(1)}/5) are sore today. Opting for active mobility flow to dump lactic acid and recover.`,
+          impactEvents: []
+        };
+      }
+    }
+
+    // Rule 4: Muscle Soreness from Heavy Sport Yesterday
+    if (historySports.length > 0) {
+      return {
+        workoutId: "active_mobility",
+        name: "Full Body Mobility Flow",
+        reason: `You had a demanding sport session yesterday (${historySports[0].type.toUpperCase()}). Today we focus on flushing out lactic acid and restoring flexibility.`,
+        impactEvents: []
+      };
+    }
+
+    // Rule 5: Training Frequency - Lift Days Goal
+    // Look at how many lift sessions completed in the last 7 days vs target
+    const liftCount7Days = loggedWorkouts.filter(w => {
+      const wDate = new Date(w.date + 'T00:00:00');
+      const tDate = new Date(todayStr + 'T00:00:00');
+      const diffDays = (tDate - wDate) / (1000 * 60 * 60 * 24);
+      return diffDays >= 0 && diffDays < 7 && (w.type === 'lifting' || w.id?.includes('strength'));
+    }).length;
+
+    const weeklyTarget = parseInt(goals.frequency || '3');
+
+    // Rule 6: Rotation of clear days
+    // Count occurrences of types in the last 10 days
+    const plyosCount = historyPlyos.length;
+    const agilityCount = historyAgility.length;
+    const liftingCount = historyLifting.length;
+
+    // Check which workout was done least recently
+    // If lifting is behind weekly frequency schedule, prioritize lifting
+    if (liftCount7Days < weeklyTarget && liftingCount <= plyosCount && liftingCount <= agilityCount) {
+      // Alternate between A and B
+      const lastLiftingSession = loggedWorkouts
+        .filter(w => w.id === 'athletic_strength_a' || w.id === 'athletic_strength_b')
+        .sort((a,b) => new Date(b.date) - new Date(a.date))[0];
+      
+      const nextLiftId = (!lastLiftingSession || lastLiftingSession.id === 'athletic_strength_b') 
+        ? 'athletic_strength_a' 
+        : 'athletic_strength_b';
+
+      const nextLiftName = nextLiftId === 'athletic_strength_a' ? "Explosive Athletic Strength A" : "Athletic Shred & Power B";
+
+      return {
+        workoutId: nextLiftId,
+        name: nextLiftName,
+        reason: `Your calendar is clear. You've logged ${liftCount7Days}/${weeklyTarget} lifts this week. Let's do some compound strength training to build force and protect muscle mass.`,
+        impactEvents: []
+      };
+    }
+
+    // Prioritize Plyos if it has been done less than speed/lifting
+    if (plyosCount <= agilityCount && plyosCount <= liftingCount) {
+      return {
+        workoutId: "sand_plyos",
+        name: "Sand Plyos & Vertical Boost",
+        reason: "Your schedule is wide open. Let's hit the sand plyometrics to build vertical explosiveness and ankle power for volleyball.",
+        impactEvents: []
+      };
+    }
+
+    // Prioritize Speed/Agility next
+    if (agilityCount <= plyosCount && agilityCount <= liftingCount) {
+      return {
+        workoutId: "saq_agility",
+        name: "Football Speed & Agility",
+        reason: "Let's focus on deceleration control, sprint starts, and change of direction agility on your open schedule today.",
+        impactEvents: []
+      };
+    }
+
+    // Fallback: If everything is balanced, recommend a strength session
+    const lastLiftingSession = loggedWorkouts
+      .filter(w => w.id === 'athletic_strength_a' || w.id === 'athletic_strength_b')
+      .sort((a,b) => new Date(b.date) - new Date(a.date))[0];
+    
+    const fallbackId = (!lastLiftingSession || lastLiftingSession.id === 'athletic_strength_b') 
+      ? 'athletic_strength_a' 
+      : 'athletic_strength_b';
+    const fallbackName = fallbackId === 'athletic_strength_a' ? "Explosive Athletic Strength A" : "Athletic Shred & Power B";
+
+    return {
+      workoutId: fallbackId,
+      name: fallbackName,
+      reason: "Everything is balanced. Let's perform a foundational strength session to keep you shredding and explosive.",
+      impactEvents: []
+    };
+  }
+};
