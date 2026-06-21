@@ -79,7 +79,6 @@ const APEX_APP = {
     }
 
     // Google Calendar Settings
-    document.getElementById("gcal-client-id").value = APEX_GCAL.clientId;
     document.getElementById("gcal-mock-toggle").checked = APEX_GCAL.isMockEnabled;
 
     // Load Settings Inputs
@@ -159,14 +158,7 @@ const APEX_APP = {
       });
     });
 
-    // Settings: Save Google Calendar Client ID
-    document.getElementById("btn-save-gcal").addEventListener("click", () => {
-      const clientId = document.getElementById("gcal-client-id").value.trim();
-      const mockToggle = document.getElementById("gcal-mock-toggle").checked;
-      APEX_GCAL.saveConfig(clientId, mockToggle);
-      alert("Settings saved successfully.");
-      this.syncCalendarData();
-    });
+
 
     // Settings: Mock Mode Toggle
     document.getElementById("gcal-mock-toggle").addEventListener("change", (e) => {
