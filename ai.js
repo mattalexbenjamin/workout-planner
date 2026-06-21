@@ -2,9 +2,9 @@
 // Handles client-side, zero-backend LLM execution via Google Gemini & OpenAI ChatGPT
 
 const APEX_AI = {
-  // Google Gemini API Call (Using 1.5 Flash with responseSchema)
+  // Google Gemini API Call (Using 3.5 Flash with responseSchema)
   async generateGemini(apiKey, systemPrompt, userPrompt, onSuccess, onError) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
     const payload = {
       contents: [{
         parts: [{ text: systemPrompt + "\n\n" + userPrompt }]
