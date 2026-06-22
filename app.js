@@ -255,7 +255,7 @@ const APEX_APP = {
             duration: durationVal,
             intensity: 5,
             exercises: [],
-            notes: `Auto-logged from calendar: ${evt.title}`,
+            notes: `Auto-logged from calendar: ${evt.title}` + (evt.description ? `\n\n${evt.description}` : ""),
             soreness: { legs: 1.0, shoulders: 1.0, core: 1.0, fatigue: 1.0 },
             isPlanned: false
           };
@@ -273,7 +273,7 @@ const APEX_APP = {
             duration: durationVal,
             intensity: 5,
             exercises: [],
-            notes: `Planned from calendar: ${evt.title}`,
+            notes: `Planned from calendar: ${evt.title}` + (evt.description ? `\n\n${evt.description}` : ""),
             soreness: { legs: 1.0, shoulders: 1.0, core: 1.0, fatigue: 1.0 },
             isPlanned: true
           };
@@ -287,7 +287,7 @@ const APEX_APP = {
         // 1. Convert planned to completed if it's now in the past
         if (existing.isPlanned && evt.date <= todayStr) {
           existing.isPlanned = false;
-          existing.notes = `Auto-logged from calendar: ${evt.title}`;
+          existing.notes = existing.notes.replace(/^Planned from calendar:/, "Auto-logged from calendar:");
           changed = true;
         }
         
@@ -299,7 +299,11 @@ const APEX_APP = {
           const isNowFuture = evt.date > todayStr;
           if (wasFuture !== isNowFuture && isInRange) {
             existing.isPlanned = isNowFuture;
-            existing.notes = isNowFuture ? `Planned from calendar: ${evt.title}` : `Auto-logged from calendar: ${evt.title}`;
+            if (isNowFuture) {
+              existing.notes = existing.notes.replace(/^Auto-logged from calendar:/, "Planned from calendar:");
+            } else {
+              existing.notes = existing.notes.replace(/^Planned from calendar:/, "Auto-logged from calendar:");
+            }
           }
           changed = true;
         }
@@ -315,9 +319,9 @@ const APEX_APP = {
           changed = true;
         }
         
-        // 4. Title changed (update classification if needed)
-        const expectedNotes = (existing.isPlanned ? "Planned from calendar: " : "Auto-logged from calendar: ") + evt.title;
-        if (existing.notes !== expectedNotes) {
+        // 4. Title or description changed (update classification if needed)
+        const expectedNotes = (existing.isPlanned ? "Planned from calendar: " : "Auto-logged from calendar: ") + evt.title + (evt.description ? `\n\n${evt.description}` : "");
+        if (existing.notes !== expectedNotes && (existing.notes.startsWith("Planned from calendar:") || existing.notes.startsWith("Auto-logged from calendar:"))) {
           existing.notes = expectedNotes;
           existing.id = classification.id;
           existing.type = classification.type;
@@ -684,9 +688,11 @@ const APEX_APP = {
       const shouldersSore = parseInt(document.getElementById("log-workout-sore-shoulders").value);
       const coreSore = parseInt(document.getElementById("log-workout-sore-core").value);
       const fatigueSore = parseInt(document.getElementById("log-workout-sore-fatigue").value);
+      
+      const uuidField = document.getElementById("log-workout-uuid").value;
 
       const newLog = {
-        uuid: Date.now() + "_" + Math.random().toString(36).substr(2, 9),
+        uuid: uuidField || (Date.now() + "_" + Math.random().toString(36).substr(2, 9)),
         id: workoutId || "custom_lift",
         type: "lifting",
         date: date,
@@ -697,7 +703,16 @@ const APEX_APP = {
         soreness: { legs: legsSore, shoulders: shouldersSore, core: coreSore, fatigue: fatigueSore }
       };
 
-      this.state.loggedWorkouts.push(newLog);
+      const existingIndex = uuidField ? this.state.loggedWorkouts.findIndex(w => w.uuid === uuidField) : -1;
+      if (existingIndex > -1) {
+        const orig = this.state.loggedWorkouts[existingIndex];
+        newLog.gcalEventId = orig.gcalEventId;
+        newLog.isPlanned = orig.isPlanned;
+        this.state.loggedWorkouts[existingIndex] = newLog;
+      } else {
+        this.state.loggedWorkouts.push(newLog);
+      }
+      
       this.saveLogsToStorage();
 
       if (APEX_GCAL.accessToken) {
@@ -723,9 +738,11 @@ const APEX_APP = {
       const shouldersSore = parseInt(document.getElementById("log-sport-sore-shoulders").value);
       const coreSore = parseInt(document.getElementById("log-sport-sore-core").value);
       const fatigueSore = parseInt(document.getElementById("log-sport-sore-fatigue").value);
+      
+      const uuidField = document.getElementById("log-sport-uuid").value;
 
       const newLog = {
-        uuid: Date.now() + "_" + Math.random().toString(36).substr(2, 9),
+        uuid: uuidField || (Date.now() + "_" + Math.random().toString(36).substr(2, 9)),
         id: type + "_session",
         type: type,
         date: date,
@@ -736,7 +753,16 @@ const APEX_APP = {
         soreness: { legs: legsSore, shoulders: shouldersSore, core: coreSore, fatigue: fatigueSore }
       };
 
-      this.state.loggedWorkouts.push(newLog);
+      const existingIndex = uuidField ? this.state.loggedWorkouts.findIndex(w => w.uuid === uuidField) : -1;
+      if (existingIndex > -1) {
+        const orig = this.state.loggedWorkouts[existingIndex];
+        newLog.gcalEventId = orig.gcalEventId;
+        newLog.isPlanned = orig.isPlanned;
+        this.state.loggedWorkouts[existingIndex] = newLog;
+      } else {
+        this.state.loggedWorkouts.push(newLog);
+      }
+      
       this.saveLogsToStorage();
 
       if (APEX_GCAL.accessToken) {
@@ -784,39 +810,50 @@ const APEX_APP = {
   },
 
   // Modal Open Logic
-  openWorkoutModal(workoutTemplate) {
+  openWorkoutModal(workoutTemplate, existingLog = null) {
     const modal = document.getElementById("modal-log-workout");
     const form = document.getElementById("form-log-workout");
     form.reset();
+
+    document.getElementById("log-workout-uuid").value = existingLog ? existingLog.uuid : "";
 
     // Reset sliders
     ['legs', 'shoulders', 'core', 'fatigue'].forEach(cat => {
       const slider = document.getElementById(`log-workout-sore-${cat}`);
       const label = document.getElementById(`lbl-workout-sore-${cat}`);
       if (slider && label) {
-        slider.value = 1;
-        label.innerText = "1";
+        const val = existingLog && existingLog.soreness ? existingLog.soreness[cat] : 1;
+        slider.value = val;
+        label.innerText = val;
       }
     });
     
-    // Set default date to today
-    document.getElementById("log-workout-date").value = this.state.currentDateStr;
+    // Set default date to today or existing log's date
+    document.getElementById("log-workout-date").value = existingLog ? existingLog.date : this.state.currentDateStr;
     
     const exercisesContainer = document.getElementById("modal-exercises-list");
     exercisesContainer.innerHTML = "";
 
+    if (existingLog && !workoutTemplate) {
+       workoutTemplate = ATHLETIC_WORKOUTS.find(w => w.id === existingLog.id);
+    }
+
     if (workoutTemplate) {
-      document.getElementById("modal-workout-title").innerText = `Log: ${workoutTemplate.name}`;
+      document.getElementById("modal-workout-title").innerText = existingLog ? `Edit: ${workoutTemplate.name}` : `Log: ${workoutTemplate.name}`;
       document.getElementById("log-workout-id").value = workoutTemplate.id;
-      document.getElementById("log-workout-duration").value = workoutTemplate.duration;
-      document.getElementById("log-workout-intensity").value = workoutTemplate.intensity;
-      document.getElementById("log-workout-notes").placeholder = workoutTemplate.description;
+      document.getElementById("log-workout-duration").value = existingLog ? existingLog.duration : workoutTemplate.duration;
+      document.getElementById("log-workout-intensity").value = existingLog ? existingLog.intensity : workoutTemplate.intensity;
+      
+      const notesField = document.getElementById("log-workout-notes");
+      notesField.placeholder = workoutTemplate.description;
+      notesField.value = existingLog ? existingLog.notes : "";
 
       workoutTemplate.exercises.forEach(ex => {
+        const isChecked = existingLog && existingLog.exercises ? existingLog.exercises.includes(ex.name) : true;
         const row = document.createElement("label");
         row.className = "exercise-checkbox-row";
         row.innerHTML = `
-          <input type="checkbox" class="exercise-chk" value="${ex.name}" checked>
+          <input type="checkbox" class="exercise-chk" value="${ex.name}" ${isChecked ? 'checked' : ''}>
           <span>
             <strong>${ex.name}</strong>
             <a href="${getExerciseGuideUrl(ex.name)}" target="_blank" rel="noopener" class="exercise-video-link" title="Watch Form Guide">🎬 Guide</a>
@@ -828,9 +865,14 @@ const APEX_APP = {
       });
     } else {
       // Custom lift session
-      document.getElementById("modal-workout-title").innerText = "Log Custom Lift Session";
-      document.getElementById("log-workout-id").value = "";
-      document.getElementById("log-workout-notes").placeholder = "Sets, reps, or personal records details...";
+      document.getElementById("modal-workout-title").innerText = existingLog ? "Edit Custom Lift Session" : "Log Custom Lift Session";
+      document.getElementById("log-workout-id").value = existingLog ? existingLog.id : "";
+      document.getElementById("log-workout-duration").value = existingLog ? existingLog.duration : 60;
+      document.getElementById("log-workout-intensity").value = existingLog ? existingLog.intensity : 5;
+      
+      const notesField = document.getElementById("log-workout-notes");
+      notesField.placeholder = "Sets, reps, or personal records details...";
+      notesField.value = existingLog ? existingLog.notes : "";
 
       // Add a couple of text lines or dynamic entries if needed
       exercisesContainer.innerHTML = `
@@ -844,24 +886,29 @@ const APEX_APP = {
     modal.classList.add("active");
   },
 
-  openSportModal(sportType) {
+  openSportModal(sportType, existingLog = null) {
     const modal = document.getElementById("modal-log-sport");
     const form = document.getElementById("form-log-sport");
     form.reset();
+
+    document.getElementById("log-sport-uuid").value = existingLog ? existingLog.uuid : "";
 
     // Reset sliders
     ['legs', 'shoulders', 'core', 'fatigue'].forEach(cat => {
       const slider = document.getElementById(`log-sport-sore-${cat}`);
       const label = document.getElementById(`lbl-sport-sore-${cat}`);
       if (slider && label) {
-        slider.value = 1;
-        label.innerText = "1";
+        const val = existingLog && existingLog.soreness ? existingLog.soreness[cat] : 1;
+        slider.value = val;
+        label.innerText = val;
       }
     });
 
-    document.getElementById("modal-sport-title").innerText = `Log ${sportType.toUpperCase()} Session`;
+    document.getElementById("modal-sport-title").innerText = existingLog ? `Edit ${sportType.toUpperCase()} Session` : `Log ${sportType.toUpperCase()} Session`;
     document.getElementById("log-sport-type").value = sportType;
-    document.getElementById("log-sport-date").value = this.state.currentDateStr;
+    document.getElementById("log-sport-date").value = existingLog ? existingLog.date : this.state.currentDateStr;
+    document.getElementById("log-sport-duration").value = existingLog ? existingLog.duration : 90;
+    document.getElementById("log-sport-intensity").value = existingLog ? existingLog.intensity : 7;
 
     // Custom placeholders based on sport
     const notesField = document.getElementById("log-sport-notes");
@@ -872,6 +919,7 @@ const APEX_APP = {
     } else if (sportType === "running") {
       notesField.placeholder = "Distance covered (miles), average pace, split timings...";
     }
+    notesField.value = existingLog ? existingLog.notes : "";
 
     modal.classList.add("active");
   },
@@ -1264,14 +1312,14 @@ const APEX_APP = {
           
           if (log.isPlanned) {
             contentHTML += `
-              <div class="cal-event-badge ${log.type} planned-workout">
+              <div class="cal-event-badge ${log.type} planned-workout logged-event-clickable" data-uuid="${log.uuid}">
                 <span>⏳ ${typeIcon} Planned: ${title}</span>
                 <span class="event-details">Planned</span>
               </div>
             `;
           } else {
             contentHTML += `
-              <div class="cal-event-badge ${log.type} completed-workout">
+              <div class="cal-event-badge ${log.type} completed-workout logged-event-clickable" data-uuid="${log.uuid}">
                 <span>✅ ${typeIcon} Completed: ${title}</span>
                 <span class="event-details">${log.duration}m | RPE ${log.intensity}</span>
               </div>
@@ -1312,6 +1360,23 @@ const APEX_APP = {
 
       grid.appendChild(dayCard);
     }
+    
+    // Add click listeners to logged events in calendar
+    document.querySelectorAll(".logged-event-clickable").forEach(el => {
+      el.addEventListener("click", (e) => {
+        const uuid = e.currentTarget.getAttribute("data-uuid");
+        const log = this.state.loggedWorkouts.find(w => w.uuid === uuid);
+        if (log) {
+          if (log.type === "lifting") {
+            this.openWorkoutModal(null, log);
+          } else {
+            this.openSportModal(log.type, log);
+          }
+        }
+      });
+      // add style to show it's clickable
+      el.style.cursor = "pointer";
+    });
   },
 
   renderLibraryTab() {
@@ -1443,10 +1508,20 @@ const APEX_APP = {
         </div>
         ${exercisesHTML}
         ${log.notes ? `<div class="history-item-notes">"${log.notes}"</div>` : ''}
-        <div class="history-item-actions">
-          <button class="btn-delete-log" data-date="${log.date}" data-id="${log.id}">Delete</button>
+        <div class="history-item-actions" style="margin-top: 8px;">
+          <button class="btn btn-icon btn-edit-log" data-uuid="${log.uuid}" style="font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--color-border); background: var(--color-surface-hover); cursor: pointer; margin-right: 8px;">Edit</button>
+          <button class="btn btn-icon btn-delete-log" data-date="${log.date}" data-id="${log.id}" style="font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--color-danger); color: var(--color-danger); background: transparent; cursor: pointer;">Delete</button>
         </div>
       `;
+
+      // Wire edit action
+      item.querySelector(".btn-edit-log").addEventListener("click", (e) => {
+        if (log.type === "lifting") {
+          this.openWorkoutModal(null, log);
+        } else {
+          this.openSportModal(log.type, log);
+        }
+      });
 
       // Wire delete action
       item.querySelector(".btn-delete-log").addEventListener("click", (e) => {
