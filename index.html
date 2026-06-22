@@ -219,6 +219,33 @@
         <p class="text-secondary">Your 17-week campaign (June - September 2026)</p>
       </div>
 
+      <!-- Weekly Planner Controls -->
+      <div class="dashboard-card weekly-planner-card" style="margin-bottom: 20px;">
+        <div class="card-header">
+          <h4>Multi-Day AI Planner</h4>
+          <span class="badge badge-accent">✨ AI COACH</span>
+        </div>
+        <div class="card-body" style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+          <div class="form-group" style="margin-bottom: 0; min-width: 150px;">
+            <label for="planner-days">Plan ahead for:</label>
+            <select id="planner-days" class="form-input">
+              <option value="3">3 Days</option>
+              <option value="4">4 Days</option>
+              <option value="5" selected>5 Days</option>
+              <option value="6">6 Days</option>
+              <option value="7">7 Days</option>
+            </select>
+          </div>
+          <button id="btn-generate-multi-plan" class="btn btn-primary" style="flex: 1;">Generate AI Schedule</button>
+        </div>
+        <div class="card-footer" style="padding-top: 0; border-top: none;">
+          <div id="ai-planner-loading" class="ai-loading-container hidden">
+            <div class="spinner-circle"></div>
+            <span>AI Coach is calculating your optimal recovery and training blocks...</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Calendar Filters -->
       <div class="calendar-controls">
         <button id="btn-cal-prev" class="btn btn-icon">◀</button>
@@ -643,6 +670,23 @@
           <button type="submit" class="btn btn-primary">Save Activity</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- AI Multi-Day Plan Preview Modal -->
+  <div id="modal-plan-preview" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3>✨ Proposed Training Block</h3>
+        <span class="modal-close">&times;</span>
+      </div>
+      <div class="modal-body" id="plan-preview-list" style="max-height: 450px; overflow-y: auto; padding-right: 10px; margin-bottom: 20px;">
+        <!-- Plan items injected here -->
+      </div>
+      <div class="modal-actions" style="display: flex; gap: 16px;">
+        <button type="button" class="btn btn-secondary modal-cancel" style="flex: 1;">Discard Plan</button>
+        <button type="button" id="btn-accept-plan" class="btn btn-primary" style="flex: 2;">Add to Google Calendar</button>
+      </div>
     </div>
   </div>
 

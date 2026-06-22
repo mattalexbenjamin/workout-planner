@@ -191,5 +191,150 @@ Provide your output strictly in JSON format matching the schema.`;
     } else {
       onError("Invalid AI Provider specified.");
     }
+  },
+
+  // Multi-Day Generation Dispatcher
+  generateMultiDayPlan(provider, apiKey, context, daysToPlan, onSuccess, onError) {
+    if (!apiKey) {
+      onError("API Key is missing. Please save it in Settings.");
+      return;
+    }
+
+    const systemPrompt = `You are APEX AI, an elite strength and conditioning coach.
+Your task is to write a multi-day athletic schedule for the next ${daysToPlan} days.
+You must balance fatigue, schedule rest days, and interleave weightlifting, sports (volleyball, football, running), and recovery based on the athlete's goals, existing schedule, and soreness.
+
+Follow these coaching rules:
+1. Do not schedule heavy leg days back-to-back, or the day before a sports match.
+2. If the user has a busy calendar day (lots of meetings), either schedule a Rest Day or a short 15-20 min Express Circuit.
+3. If they are already sore, ensure early days in the plan focus on recovery or opposing muscle groups.
+4. Output must be exactly ${daysToPlan} days, starting from the given start date.
+5. For each day, decide if it's a "workout" or a "rest" day.
+6. For workouts, provide a clear title, duration (in minutes), and a recommended start time based on open gaps in their calendar for that day.
+7. Provide a 1-sentence reasoning for why you chose this activity for this day.
+
+You must respond strictly with a JSON object containing a "plan" array of objects.`;
+
+    const userPrompt = `Generate a ${daysToPlan}-day plan starting from ${context.startDateStr}.
+
+Athletic Context:
+- Current Muscle Soreness: Legs: ${context.soreness.legs.toFixed(1)}/5, Shoulders: ${context.soreness.shoulders.toFixed(1)}/5, Core: ${context.soreness.core.toFixed(1)}/5, Overall Fatigue: ${context.soreness.fatigue.toFixed(1)}/5
+
+- Calendar Events for the next ${daysToPlan} days:
+${context.upcomingEvents.length > 0 ? context.upcomingEvents.map(e => `* ${e.date}: ${e.title} (${e.start || 'all-day'} - ${e.end || ''})`).join('\n') : "None"}
+
+- Recent History (last 5 sessions):
+${context.recentHistory.length > 0 ? context.recentHistory.map(h => `* ${h.date}: ${h.title || h.id} (${h.duration}m, RPE: ${h.intensity})`).join('\n') : "No logged workouts."}
+
+- Summer Goals: Target Lift Days/Week: ${context.goals.frequency}.
+Current weight: ${context.goals.currentWeight} lbs. Target: ${context.goals.targetWeight} lbs.
+
+Provide output strictly matching the JSON schema.`;
+
+    const schema = {
+      type: "OBJECT",
+      properties: {
+        plan: {
+          type: "ARRAY",
+          items: {
+            type: "OBJECT",
+            properties: {
+              date: { type: "STRING", description: "YYYY-MM-DD" },
+              decision: { type: "STRING", description: "Either 'workout' or 'rest'" },
+              title: { type: "STRING", description: "Name of the workout or Rest Day" },
+              duration: { type: "INTEGER", description: "Duration in minutes" },
+              startTime: { type: "STRING", description: "Recommended start time HH:MM based on schedule gaps" },
+              reasoning: { type: "STRING", description: "Brief reason for this choice" }
+            },
+            required: ["date", "decision", "title", "duration", "startTime", "reasoning"]
+          }
+        }
+      },
+      required: ["plan"]
+    };
+
+    if (provider === 'gemini') {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+      const payload = {
+        contents: [{ parts: [{ text: systemPrompt + "\n\n" + userPrompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: schema
+        }
+      };
+
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) throw new Error(data.error.message);
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) throw new Error("Empty response from Gemini.");
+        onSuccess(JSON.parse(text).plan);
+      })
+      .catch(err => onError(err.message));
+
+    } else if (provider === 'openai') {
+      const url = "https://api.openai.com/v1/chat/completions";
+      const payload = {
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "multi_day_plan_schema",
+            strict: true,
+            schema: {
+              type: "object",
+              properties: {
+                plan: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      date: { type: "string" },
+                      decision: { type: "string" },
+                      title: { type: "string" },
+                      duration: { type: "integer" },
+                      startTime: { type: "string" },
+                      reasoning: { type: "string" }
+                    },
+                    required: ["date", "decision", "title", "duration", "startTime", "reasoning"],
+                    additionalProperties: false
+                  }
+                }
+              },
+              required: ["plan"],
+              additionalProperties: false
+            }
+          }
+        }
+      };
+
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) throw new Error(data.error.message);
+        const text = data.choices?.[0]?.message?.content;
+        if (!text) throw new Error("Empty response from ChatGPT.");
+        onSuccess(JSON.parse(text).plan);
+      })
+      .catch(err => onError(err.message));
+    } else {
+      onError("Invalid AI Provider specified.");
+    }
   }
 };

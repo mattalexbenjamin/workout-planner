@@ -177,6 +177,56 @@ const APEX_GCAL = {
     });
   },
 
+  createCalendarEvent(calendarId, eventDetails, onSuccess, onError) {
+    if (this.isMockEnabled) {
+      // In mock mode, just fake success and add it to our mock list if needed, or simply return success
+      console.log("Mock Mode: Fake creating calendar event:", eventDetails.title);
+      setTimeout(() => onSuccess({ id: "mock-created-" + Date.now(), summary: eventDetails.title }), 500);
+      return;
+    }
+
+    if (!this.accessToken) {
+      if (onError) onError("No active Google session. Please sign in.");
+      return;
+    }
+
+    const payload = {
+      summary: eventDetails.title,
+      description: eventDetails.description || "Added by APEX Summer 26",
+      start: {
+        dateTime: eventDetails.startDateTime,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      },
+      end: {
+        dateTime: eventDetails.endDateTime,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      }
+    };
+
+    const targetCalId = encodeURIComponent(calendarId || "primary");
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${targetCalId}/events`;
+
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${this.accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    })
+    .then(res => {
+      if (!res.ok) throw new Error(`Google Calendar API Error: ${res.statusText}`);
+      return res.json();
+    })
+    .then(data => {
+      if (onSuccess) onSuccess(data);
+    })
+    .catch(err => {
+      console.error("GCal Create Event Error:", err);
+      if (onError) onError(err.message);
+    });
+  },
+
   // Google Drive REST API Helpers
   getOrCreateFolder(folderName, onSuccess, onError) {
     if (!this.accessToken) {

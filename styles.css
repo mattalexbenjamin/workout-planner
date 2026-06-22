@@ -1663,3 +1663,62 @@ input:checked + .slider:before {
 .hidden {
   display: none !important;
 }
+
+/* Weekly Planner & Preview Modal Styles */
+.weekly-planner-card {
+  border: 1px solid var(--color-accent-dim);
+  background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(255, 94, 0, 0.05) 100%);
+}
+
+.plan-preview-item {
+  background: var(--bg-body);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 12px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.plan-preview-item.rest-day {
+  border-color: var(--color-success-dim);
+  background: rgba(0, 255, 136, 0.05);
+}
+
+.plan-preview-item.workout-day {
+  border-color: var(--color-accent-dim);
+  background: rgba(255, 94, 0, 0.05);
+}
+
+.plan-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.plan-preview-date {
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.plan-preview-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.plan-preview-meta {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  display: flex;
+  gap: 12px;
+}
+
+.plan-preview-reasoning {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+  background: rgba(0,0,0,0.2);
+  padding: 6px 8px;
+  border-radius: 4px;
+}
