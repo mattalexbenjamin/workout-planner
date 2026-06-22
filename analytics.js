@@ -118,20 +118,16 @@ const APEX_ANALYTICS = {
       }
 
       // Aggregate Muscle Stress for heatmap
-      let logSore = log.soreness;
-      if (!logSore && typeof APEX_RECOMMENDER !== "undefined") {
-        logSore = APEX_RECOMMENDER.getDefaultSorenessImpact(log);
-      }
+      let logSore = typeof APEX_RECOMMENDER !== "undefined" ? APEX_RECOMMENDER.calculateFatigueImpact(log) : {legs:1, back:1, chest:1, shoulders:1, arms:1, core:1, fatigue:1};
       
       if (logSore) {
-        // Multiply by intensity (RPE) as a proxy for total workload/volume
-        const intensityFactor = Number(log.intensity || 5) / 5; // standardizes around factor 1.0 at RPE 5
-        legsStress += Number(logSore.legs || 1.0) * intensityFactor;
-        backStress += Number(logSore.back || 1.0) * intensityFactor;
-        chestStress += Number(logSore.chest || 1.0) * intensityFactor;
-        shouldersStress += Number(logSore.shoulders || 1.0) * intensityFactor;
-        armsStress += Number(logSore.arms || 1.0) * intensityFactor;
-        coreStress += Number(logSore.core || 1.0) * intensityFactor;
+        // Impact is already algorithmically scaled in calculateFatigueImpact based on duration/intensity/sets/reps
+        legsStress += Number(logSore.legs || 1.0);
+        backStress += Number(logSore.back || 1.0);
+        chestStress += Number(logSore.chest || 1.0);
+        shouldersStress += Number(logSore.shoulders || 1.0);
+        armsStress += Number(logSore.arms || 1.0);
+        coreStress += Number(logSore.core || 1.0);
       }
     });
 

@@ -514,6 +514,35 @@
         </div>
       </div>
 
+      <!-- Strava Integration Settings Card -->
+      <div class="settings-card highlight-card-ai" style="border-left: 4px solid #fc4c02;">
+        <h3 style="color: #fc4c02;">🚴‍♂️ Strava Integration</h3>
+        <p class="card-description">Auto-sync your runs, rides, and hikes from Strava to calculate precise systemic fatigue.</p>
+        
+        <div class="form-group">
+          <label for="strava-client-id">Strava Client ID</label>
+          <input type="text" id="strava-client-id" placeholder="e.g. 123456" class="form-input">
+        </div>
+
+        <div class="form-group">
+          <label for="strava-client-secret">Strava Client Secret</label>
+          <div class="password-input-container">
+            <input type="password" id="strava-client-secret" placeholder="Your Client Secret" class="form-input">
+            <button type="button" id="btn-toggle-strava-secret" class="btn-toggle-visibility">👁️</button>
+          </div>
+          <small class="form-help">Get these from your <a href="https://www.strava.com/settings/api" target="_blank" rel="noopener">Strava API Settings</a>.</small>
+        </div>
+
+        <div class="settings-actions">
+          <button id="btn-auth-strava" class="btn btn-secondary" style="background: #fc4c02; border-color: #fc4c02; color: #fff;">Connect Strava</button>
+          <button id="btn-sync-strava" class="btn btn-primary hidden">Sync Recent Activities</button>
+          <button id="btn-disconnect-strava" class="btn btn-danger hidden">Disconnect</button>
+        </div>
+        <div id="strava-sync-panel" class="drive-sync-panel" style="margin-top: 10px;">
+          <span id="settings-strava-sync-time" class="text-secondary" style="font-size: 0.8rem; font-weight: 600;">Last Sync: Never</span>
+        </div>
+      </div>
+
       <!-- Gemini & OpenAI AI Integration Card -->
       <div class="settings-card highlight-card-ai">
         <h3>✨ Gemini & ChatGPT AI Coach (Optional)</h3>
@@ -634,6 +663,7 @@
       <form id="form-log-workout">
         <input type="hidden" id="log-workout-uuid">
         <input type="hidden" id="log-workout-id">
+        <input type="hidden" id="log-workout-name">
         <input type="hidden" id="log-workout-type">
         
         <div class="form-group">
@@ -667,37 +697,14 @@
         </div>
 
         <div class="form-group">
-          <label>Post-Session Soreness & Fatigue</label>
-          <div class="soreness-sliders-grid" style="grid-template-columns: repeat(2, 1fr);">
-            <div class="slider-group">
-              <label for="log-workout-sore-legs">Legs: <span id="lbl-workout-sore-legs">1</span>/5</label>
-              <input type="range" id="log-workout-sore-legs" min="1" max="5" step="1" value="1" class="form-input slider-input">
-            </div>
-            <div class="slider-group">
-              <label for="log-workout-sore-back">Back: <span id="lbl-workout-sore-back">1</span>/5</label>
-              <input type="range" id="log-workout-sore-back" min="1" max="5" step="1" value="1" class="form-input slider-input">
-            </div>
-            <div class="slider-group">
-              <label for="log-workout-sore-chest">Chest: <span id="lbl-workout-sore-chest">1</span>/5</label>
-              <input type="range" id="log-workout-sore-chest" min="1" max="5" step="1" value="1" class="form-input slider-input">
-            </div>
-            <div class="slider-group">
-              <label for="log-workout-sore-shoulders">Shoulders: <span id="lbl-workout-sore-shoulders">1</span>/5</label>
-              <input type="range" id="log-workout-sore-shoulders" min="1" max="5" step="1" value="1" class="form-input slider-input">
-            </div>
-            <div class="slider-group">
-              <label for="log-workout-sore-arms">Arms: <span id="lbl-workout-sore-arms">1</span>/5</label>
-              <input type="range" id="log-workout-sore-arms" min="1" max="5" step="1" value="1" class="form-input slider-input">
-            </div>
-            <div class="slider-group">
-              <label for="log-workout-sore-core">Core: <span id="lbl-workout-sore-core">1</span>/5</label>
-              <input type="range" id="log-workout-sore-core" min="1" max="5" step="1" value="1" class="form-input slider-input">
-            </div>
-            <div class="slider-group" style="grid-column: span 2;">
-              <label for="log-workout-sore-fatigue">Fatigue (Overall): <span id="lbl-workout-sore-fatigue">1</span>/5</label>
-              <input type="range" id="log-workout-sore-fatigue" min="1" max="5" step="1" value="1" class="form-input slider-input">
-            </div>
-          </div>
+          <label for="log-workout-intention">Workout Intention (Affects Fatigue Calculation)</label>
+          <select id="log-workout-intention" class="form-input">
+            <option value="hypertrophy" selected>Hypertrophy (Moderate Weight / Moderate Reps)</option>
+            <option value="strength">Strength (Heavy Weight / Low Reps)</option>
+            <option value="endurance">Endurance (Light Weight / High Reps)</option>
+            <option value="power">Power / Plyometrics (Explosive)</option>
+            <option value="recovery">Recovery / Prehab (Low Intensity)</option>
+          </select>
         </div>
 
         <div class="form-group">
@@ -746,39 +753,7 @@
           </div>
         </div>
 
-        <div class="form-group">
-          <label>Post-Session Soreness & Fatigue</label>
-          <div class="soreness-sliders-grid" style="grid-template-columns: repeat(2, 1fr);">
-            <div class="slider-group">
-              <label for="log-sport-sore-legs">Legs: <span id="lbl-sport-sore-legs">1</span>/5</label>
-              <input type="range" id="log-sport-sore-legs" min="1" max="5" step="1" value="1" class="form-input slider-input">
-            </div>
-            <div class="slider-group">
-              <label for="log-sport-sore-back">Back: <span id="lbl-sport-sore-back">1</span>/5</label>
-              <input type="range" id="log-sport-sore-back" min="1" max="5" step="1" value="1" class="form-input slider-input">
-            </div>
-            <div class="slider-group">
-              <label for="log-sport-sore-chest">Chest: <span id="lbl-sport-sore-chest">1</span>/5</label>
-              <input type="range" id="log-sport-sore-chest" min="1" max="5" step="1" value="1" class="form-input slider-input">
-            </div>
-            <div class="slider-group">
-              <label for="log-sport-sore-shoulders">Shoulders: <span id="lbl-sport-sore-shoulders">1</span>/5</label>
-              <input type="range" id="log-sport-sore-shoulders" min="1" max="5" step="1" value="1" class="form-input slider-input">
-            </div>
-            <div class="slider-group">
-              <label for="log-sport-sore-arms">Arms: <span id="lbl-sport-sore-arms">1</span>/5</label>
-              <input type="range" id="log-sport-sore-arms" min="1" max="5" step="1" value="1" class="form-input slider-input">
-            </div>
-            <div class="slider-group">
-              <label for="log-sport-sore-core">Core: <span id="lbl-sport-sore-core">1</span>/5</label>
-              <input type="range" id="log-sport-sore-core" min="1" max="5" step="1" value="1" class="form-input slider-input">
-            </div>
-            <div class="slider-group" style="grid-column: span 2;">
-              <label for="log-sport-sore-fatigue">Fatigue (Overall): <span id="lbl-sport-sore-fatigue">1</span>/5</label>
-              <input type="range" id="log-sport-sore-fatigue" min="1" max="5" step="1" value="1" class="form-input slider-input">
-            </div>
-          </div>
-        </div>
+        <!-- Algorithmic fatigue calculated automatically from Duration & Intensity -->
 
         <div class="form-group">
           <label for="log-sport-notes">Activity Notes (e.g. Win/Loss, sand temperature, turf vs grass)</label>

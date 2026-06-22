@@ -69,8 +69,8 @@ const APEX_RECOMMENDER = {
           runningState.fatigue = Math.max(1.0, runningState.fatigue - 1.5);
         }
         
-        // Retrieve soreness values (user-logged or default fallback)
-        const logSoreness = log.soreness || this.getDefaultSorenessImpact(log);
+        // Retrieve soreness values (algorithmically calculated fatigue impact)
+        const logSoreness = this.calculateFatigueImpact(log);
         
         // Update running state as the max of current soreness and logged soreness
         runningState.legs = Math.max(runningState.legs, Number(logSoreness.legs || 1.0));
@@ -89,24 +89,81 @@ const APEX_RECOMMENDER = {
     return runningState;
   },
   
-  getDefaultSorenessImpact(log) {
-    if (log.id === 'sand_plyos') return { legs: 4.0, back: 1.0, chest: 1.0, shoulders: 1.0, arms: 1.0, core: 2.0, fatigue: 3.0 };
-    if (log.id === 'athletic_strength_a') return { legs: 3.5, back: 2.5, chest: 3.0, shoulders: 3.0, arms: 2.0, core: 2.5, fatigue: 3.5 };
-    if (log.id === 'athletic_strength_b') return { legs: 4.0, back: 3.5, chest: 2.0, shoulders: 3.5, arms: 2.5, core: 3.0, fatigue: 3.5 };
-    if (log.id === 'saq_agility') return { legs: 3.5, back: 1.0, chest: 1.0, shoulders: 1.0, arms: 1.0, core: 2.0, fatigue: 3.0 };
-    if (log.id === 'shoulder_knee_prehab') return { legs: 1.5, back: 1.5, chest: 1.0, shoulders: 2.0, arms: 1.0, core: 1.0, fatigue: 2.0 };
-    if (log.id === 'express_circuit') return { legs: 3.0, back: 2.0, chest: 2.0, shoulders: 2.5, arms: 2.0, core: 2.5, fatigue: 3.0 };
-    if (log.id === 'active_mobility') return { legs: 1.0, back: 1.0, chest: 1.0, shoulders: 1.0, arms: 1.0, core: 1.0, fatigue: 1.0 };
+  calculateFatigueImpact(log) {
+    // Base profiles mapping max muscle exertion (1-5 scale) at 60 mins and 10/10 intensity
+    const profiles = {
+      volleyball: { legs: 4.5, back: 2.5, chest: 1.5, shoulders: 5.0, arms: 2.5, core: 3.0, fatigue: 4.5 },
+      football:   { legs: 5.0, back: 2.0, chest: 1.5, shoulders: 2.5, arms: 1.5, core: 3.5, fatigue: 4.5 },
+      running:    { legs: 4.5, back: 1.5, chest: 1.0, shoulders: 1.0, arms: 1.0, core: 2.5, fatigue: 4.0 },
+      basketball: { legs: 5.0, back: 2.0, chest: 1.5, shoulders: 2.5, arms: 2.0, core: 3.0, fatigue: 4.5 },
+      hiking:     { legs: 4.0, back: 2.0, chest: 1.0, shoulders: 1.0, arms: 1.0, core: 2.5, fatigue: 3.5 },
+      surfing:    { legs: 2.5, back: 5.0, chest: 2.5, shoulders: 5.0, arms: 4.5, core: 3.5, fatigue: 4.5 },
+      tennis:     { legs: 4.5, back: 3.0, chest: 2.0, shoulders: 4.5, arms: 3.5, core: 3.0, fatigue: 4.0 },
+      swimming:   { legs: 2.5, back: 4.5, chest: 3.0, shoulders: 5.0, arms: 4.0, core: 3.5, fatigue: 4.0 },
+      cycling:    { legs: 5.0, back: 1.5, chest: 1.0, shoulders: 1.0, arms: 1.0, core: 2.0, fatigue: 3.5 }
+    };
+
+    let result = { legs: 1.0, back: 1.0, chest: 1.0, shoulders: 1.0, arms: 1.0, core: 1.0, fatigue: 1.0 };
     
-    if (log.type === 'volleyball') return { legs: 3.5, back: 2.0, chest: 1.0, shoulders: 4.0, arms: 2.0, core: 2.5, fatigue: 4.0 };
-    if (log.type === 'football') return { legs: 4.0, back: 1.5, chest: 1.0, shoulders: 2.0, arms: 1.0, core: 3.0, fatigue: 4.0 };
-    if (log.type === 'running') return { legs: 3.5, back: 1.0, chest: 1.0, shoulders: 1.0, arms: 1.0, core: 2.0, fatigue: 3.0 };
-    if (log.type === 'basketball') return { legs: 4.0, back: 1.5, chest: 1.5, shoulders: 2.0, arms: 1.5, core: 2.5, fatigue: 3.5 };
-    if (log.type === 'hiking') return { legs: 3.5, back: 1.5, chest: 1.0, shoulders: 1.0, arms: 1.0, core: 2.0, fatigue: 3.0 };
-    if (log.type === 'surfing') return { legs: 2.0, back: 4.0, chest: 2.0, shoulders: 4.5, arms: 3.5, core: 3.0, fatigue: 3.5 };
-    if (log.type === 'tennis') return { legs: 3.5, back: 2.5, chest: 1.5, shoulders: 3.5, arms: 2.5, core: 2.5, fatigue: 3.5 };
-    
-    return { legs: 1.0, back: 1.0, chest: 1.0, shoulders: 1.0, arms: 1.0, core: 1.0, fatigue: 1.0 };
+    // Scale by duration (baseline 60 mins) and intensity (baseline 10)
+    const durationFactor = Math.min(2.5, (log.duration || 60) / 60);
+    const intensityFactor = (log.intensity || 5) / 10;
+    const globalScale = durationFactor * intensityFactor;
+
+    if (log.type === "lifting" || log.type === "workout") {
+      let totalVolume = 0;
+      let muscleLoad = { legs: 0, back: 0, chest: 0, shoulders: 0, arms: 0, core: 0 };
+      
+      const exArray = Array.isArray(log.exercises) ? log.exercises : [];
+      exArray.forEach(exObj => {
+         let name = typeof exObj === 'string' ? exObj : exObj.name;
+         let sets = typeof exObj === 'string' ? 3 : (exObj.sets || 3);
+         let reps = typeof exObj === 'string' ? 10 : (exObj.reps || 10);
+         let vol = sets * reps;
+         totalVolume += vol;
+         
+         const n = name.toLowerCase();
+         if (n.includes('squat') || n.includes('leg') || n.includes('lunge') || n.includes('deadlift')) muscleLoad.legs += vol;
+         if (n.includes('pull') || n.includes('row') || n.includes('back')) muscleLoad.back += vol;
+         if (n.includes('push') || n.includes('bench') || n.includes('chest') || n.includes('pec')) muscleLoad.chest += vol;
+         if (n.includes('overhead') || n.includes('shoulder') || n.includes('delt')) muscleLoad.shoulders += vol;
+         if (n.includes('curl') || n.includes('tricep') || n.includes('arm')) muscleLoad.arms += vol;
+         if (n.includes('core') || n.includes('abs') || n.includes('plank')) muscleLoad.core += vol;
+      });
+
+      // Intention Multipliers
+      let intention = log.intention || "hypertrophy";
+      let intentionMultipliers = {
+        strength: { specific: 1.2, fatigue: 1.5 },
+        hypertrophy: { specific: 1.5, fatigue: 1.2 },
+        endurance: { specific: 1.0, fatigue: 1.0 },
+        power: { specific: 1.0, fatigue: 1.4 },
+        recovery: { specific: 0.5, fatigue: 0.5 }
+      };
+      let im = intentionMultipliers[intention] || intentionMultipliers.hypertrophy;
+
+      Object.keys(muscleLoad).forEach(m => {
+         // 30 reps = baseline 2.0 soreness scale
+         let sorenessScore = 1.0 + (muscleLoad[m] / 30) * im.specific * globalScale;
+         result[m] = Math.min(5.0, sorenessScore);
+      });
+      result.fatigue = Math.min(5.0, 1.0 + (totalVolume / 100) * im.fatigue * globalScale);
+
+      // Preserves legacy fallback for missing explicit exercises
+      if (log.id === 'sand_plyos') { result.legs = Math.max(result.legs, 3.5); result.fatigue = Math.max(result.fatigue, 3.0); }
+      if (log.id === 'athletic_strength_a') { result.legs = Math.max(result.legs, 3.0); result.chest = Math.max(result.chest, 2.5); }
+      if (log.id === 'athletic_strength_b') { result.legs = Math.max(result.legs, 3.5); result.back = Math.max(result.back, 3.0); }
+      
+    } else {
+      // Sports / Cardio
+      const p = profiles[log.type] || { legs: 3.0, back: 2.0, chest: 1.5, shoulders: 2.0, arms: 1.5, core: 2.0, fatigue: 3.0 };
+      Object.keys(p).forEach(k => {
+        let score = 1.0 + (p[k] - 1.0) * globalScale;
+        result[k] = Math.min(5.0, Math.max(1.0, score));
+      });
+    }
+
+    return result;
   },
 
   // Core Recommendation Function

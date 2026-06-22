@@ -24,7 +24,10 @@ const APEX_APP = {
     openaiApiKey: "",
     aiWorkout: null,
     aiGeneratedPlan: null,
-    analyticsRangeDays: "7"
+    analyticsRangeDays: "7",
+    stravaClientId: "",
+    stravaClientSecret: "",
+    stravaAccessToken: null
   },
 
   // Initialize App
@@ -44,6 +47,9 @@ const APEX_APP = {
     if (APEX_GCAL.accessToken) {
       setTimeout(() => this.syncWithGDrive(true), 2000);
     }
+    
+    // Check for Strava OAuth Callback
+    this.handleStravaCallback();
   },
 
   // Save/Load Local Storage
@@ -115,10 +121,24 @@ const APEX_APP = {
     this.state.geminiApiKey = localStorage.getItem("apex_gemini_api_key") || "";
     this.state.openaiApiKey = localStorage.getItem("apex_openai_api_key") || "";
     
-    document.getElementById("ai-provider-select").value = this.state.aiProvider;
-    document.getElementById("gemini-api-key").value = this.state.geminiApiKey;
-    document.getElementById("openai-api-key").value = this.state.openaiApiKey;
+    this.state.stravaClientId = localStorage.getItem("apex_strava_client_id") || "";
+    this.state.stravaClientSecret = localStorage.getItem("apex_strava_client_secret") || "";
+    this.state.stravaAccessToken = localStorage.getItem("apex_strava_access_token") || null;
+
+    const elAiProv = document.getElementById("ai-provider-select");
+    if (elAiProv) elAiProv.value = this.state.aiProvider;
+    const elGemini = document.getElementById("gemini-api-key");
+    if (elGemini) elGemini.value = this.state.geminiApiKey;
+    const elOpenAi = document.getElementById("openai-api-key");
+    if (elOpenAi) elOpenAi.value = this.state.openaiApiKey;
+    
+    const elStravaId = document.getElementById("strava-client-id");
+    if (elStravaId) elStravaId.value = this.state.stravaClientId;
+    const elStravaSec = document.getElementById("strava-client-secret");
+    if (elStravaSec) elStravaSec.value = this.state.stravaClientSecret;
+
     this.updateAIConfigUI();
+    this.updateStravaUI();
 
     // Automatic Migration: Permanently clean up initial mock logs (Jun 19 & 20)
     const mockKeys = ["2026-06-19_active_mobility", "2026-06-20_athletic_strength_a"];
@@ -428,6 +448,7 @@ const APEX_APP = {
     };
     toggleVisible("gemini-api-key", "btn-toggle-gemini-key");
     toggleVisible("openai-api-key", "btn-toggle-openai-key");
+    toggleVisible("strava-client-secret", "btn-toggle-strava-secret");
 
     // Settings: Save AI Config
     document.getElementById("btn-save-ai-settings").addEventListener("click", () => {
@@ -465,6 +486,43 @@ const APEX_APP = {
         this.renderTodayTab();
       }
     });
+
+    // Strava Connect Button
+    const btnAuthStrava = document.getElementById("btn-auth-strava");
+    if (btnAuthStrava) {
+      btnAuthStrava.addEventListener("click", () => {
+        const cId = document.getElementById("strava-client-id").value.trim();
+        const cSec = document.getElementById("strava-client-secret").value.trim();
+        if (!cId || !cSec) {
+          alert("Please enter both Strava Client ID and Client Secret.");
+          return;
+        }
+        this.state.stravaClientId = cId;
+        this.state.stravaClientSecret = cSec;
+        localStorage.setItem("apex_strava_client_id", cId);
+        localStorage.setItem("apex_strava_client_secret", cSec);
+        
+        this.authenticateStrava();
+      });
+    }
+
+    const btnSyncStrava = document.getElementById("btn-sync-strava");
+    if (btnSyncStrava) {
+      btnSyncStrava.addEventListener("click", () => {
+        this.syncStravaActivities();
+      });
+    }
+
+    const btnDisconnectStrava = document.getElementById("btn-disconnect-strava");
+    if (btnDisconnectStrava) {
+      btnDisconnectStrava.addEventListener("click", () => {
+        if (confirm("Disconnect Strava?")) {
+          this.state.stravaAccessToken = null;
+          localStorage.removeItem("apex_strava_access_token");
+          this.updateStravaUI();
+        }
+      });
+    }
 
     // Settings: Calendar Select Change
     document.getElementById("gcal-calendar-select").addEventListener("change", (e) => {
@@ -786,32 +844,30 @@ const APEX_APP = {
       const notes = document.getElementById("log-workout-notes").value;
       const workoutId = document.getElementById("log-workout-id").value;
       
-      // Get checked exercises
+      // Get checked exercises with sets and reps
       const checkedExercises = [];
       document.querySelectorAll(".exercise-chk:checked").forEach(chk => {
-        checkedExercises.push(chk.value);
+        const setsAttr = chk.getAttribute("data-sets") || 3;
+        const repsAttr = chk.getAttribute("data-reps") || 10;
+        checkedExercises.push({ name: chk.value, sets: parseInt(setsAttr), reps: parseInt(repsAttr) });
       });
 
-      const legsSore = parseInt(document.getElementById("log-workout-sore-legs").value);
-      const backSore = parseInt(document.getElementById("log-workout-sore-back").value);
-      const chestSore = parseInt(document.getElementById("log-workout-sore-chest").value);
-      const shouldersSore = parseInt(document.getElementById("log-workout-sore-shoulders").value);
-      const armsSore = parseInt(document.getElementById("log-workout-sore-arms").value);
-      const coreSore = parseInt(document.getElementById("log-workout-sore-core").value);
-      const fatigueSore = parseInt(document.getElementById("log-workout-sore-fatigue").value);
+      const intention = document.getElementById("log-workout-intention").value;
+      const workoutName = document.getElementById("log-workout-name").value;
       
       const uuidField = document.getElementById("log-workout-uuid").value;
 
       const newLog = {
         uuid: uuidField || (Date.now() + "_" + Math.random().toString(36).substr(2, 9)),
         id: workoutId || "custom_lift",
+        name: workoutName || "Custom Lift Session",
         type: "lifting",
         date: date,
         duration: duration,
         intensity: intensity,
         exercises: checkedExercises,
         notes: notes,
-        soreness: { legs: legsSore, back: backSore, chest: chestSore, shoulders: shouldersSore, arms: armsSore, core: coreSore, fatigue: fatigueSore }
+        intention: intention
       };
 
       const existingIndex = uuidField ? this.state.loggedWorkouts.findIndex(w => w.uuid === uuidField) : -1;
@@ -845,14 +901,6 @@ const APEX_APP = {
       const intensity = parseInt(document.getElementById("log-sport-intensity").value);
       const notes = document.getElementById("log-sport-notes").value;
 
-      const legsSore = parseInt(document.getElementById("log-sport-sore-legs").value);
-      const backSore = parseInt(document.getElementById("log-sport-sore-back").value);
-      const chestSore = parseInt(document.getElementById("log-sport-sore-chest").value);
-      const shouldersSore = parseInt(document.getElementById("log-sport-sore-shoulders").value);
-      const armsSore = parseInt(document.getElementById("log-sport-sore-arms").value);
-      const coreSore = parseInt(document.getElementById("log-sport-sore-core").value);
-      const fatigueSore = parseInt(document.getElementById("log-sport-sore-fatigue").value);
-      
       const uuidField = document.getElementById("log-sport-uuid").value;
 
       const newLog = {
@@ -864,7 +912,7 @@ const APEX_APP = {
         intensity: intensity,
         exercises: [],
         notes: notes,
-        soreness: { legs: legsSore, back: backSore, chest: chestSore, shoulders: shouldersSore, arms: armsSore, core: coreSore, fatigue: fatigueSore }
+        intention: "endurance" // Sports usually default to endurance/cardio fatigue profile
       };
 
       const existingIndex = uuidField ? this.state.loggedWorkouts.findIndex(w => w.uuid === uuidField) : -1;
@@ -931,16 +979,7 @@ const APEX_APP = {
 
     document.getElementById("log-workout-uuid").value = existingLog ? existingLog.uuid : "";
 
-    // Reset sliders
-    ['legs', 'back', 'chest', 'shoulders', 'arms', 'core', 'fatigue'].forEach(cat => {
-      const slider = document.getElementById(`log-workout-sore-${cat}`);
-      const label = document.getElementById(`lbl-workout-sore-${cat}`);
-      if (slider && label) {
-        const val = existingLog && existingLog.soreness && existingLog.soreness[cat] ? existingLog.soreness[cat] : 1;
-        slider.value = val;
-        label.innerText = val;
-      }
-    });
+    document.getElementById("log-workout-intention").value = existingLog && existingLog.intention ? existingLog.intention : (workoutTemplate && workoutTemplate.intention ? workoutTemplate.intention : "hypertrophy");
     
     // Set default date to today or existing log's date
     document.getElementById("log-workout-date").value = existingLog ? existingLog.date : this.state.currentDateStr;
@@ -950,11 +989,24 @@ const APEX_APP = {
 
     if (existingLog && !workoutTemplate) {
        workoutTemplate = ATHLETIC_WORKOUTS.find(w => w.id === existingLog.id);
+       // If not found in defaults but it has a name and exercises (e.g. AI Generated), reconstruct it
+       if (!workoutTemplate && existingLog.name && existingLog.exercises && existingLog.exercises.length > 0) {
+           workoutTemplate = {
+               id: existingLog.id,
+               name: existingLog.name,
+               duration: existingLog.duration,
+               intensity: existingLog.intensity,
+               intention: existingLog.intention,
+               exercises: existingLog.exercises,
+               description: existingLog.notes || ""
+           };
+       }
     }
 
     if (workoutTemplate) {
       document.getElementById("modal-workout-title").innerText = existingLog ? `Edit: ${workoutTemplate.name}` : `Log: ${workoutTemplate.name}`;
       document.getElementById("log-workout-id").value = workoutTemplate.id;
+      document.getElementById("log-workout-name").value = workoutTemplate.name;
       document.getElementById("log-workout-duration").value = existingLog ? existingLog.duration : workoutTemplate.duration;
       document.getElementById("log-workout-intensity").value = existingLog ? existingLog.intensity : workoutTemplate.intensity;
       
@@ -963,11 +1015,11 @@ const APEX_APP = {
       notesField.value = existingLog ? existingLog.notes : "";
 
       workoutTemplate.exercises.forEach(ex => {
-        const isChecked = existingLog && existingLog.exercises ? existingLog.exercises.includes(ex.name) : true;
+        const isChecked = existingLog && existingLog.exercises ? existingLog.exercises.some(e => (typeof e === 'string' ? e === ex.name : e.name === ex.name)) : true;
         const row = document.createElement("label");
         row.className = "exercise-checkbox-row";
         row.innerHTML = `
-          <input type="checkbox" class="exercise-chk" value="${ex.name}" ${isChecked ? 'checked' : ''}>
+          <input type="checkbox" class="exercise-chk" value="${ex.name}" data-sets="${ex.sets}" data-reps="${ex.reps}" ${isChecked ? 'checked' : ''}>
           <span>
             <strong>${ex.name}</strong>
             <a href="${getExerciseGuideUrl(ex.name)}" target="_blank" rel="noopener" class="exercise-video-link" title="Watch Form Guide">🎬 Guide</a>
@@ -981,6 +1033,7 @@ const APEX_APP = {
       // Custom lift session
       document.getElementById("modal-workout-title").innerText = existingLog ? "Edit Custom Lift Session" : "Log Custom Lift Session";
       document.getElementById("log-workout-id").value = existingLog ? existingLog.id : "";
+      document.getElementById("log-workout-name").value = "Custom Lift Session";
       document.getElementById("log-workout-duration").value = existingLog ? existingLog.duration : 60;
       document.getElementById("log-workout-intensity").value = existingLog ? existingLog.intensity : 5;
       
@@ -990,10 +1043,10 @@ const APEX_APP = {
 
       // Add a couple of text lines or dynamic entries if needed
       exercisesContainer.innerHTML = `
-        <label class="exercise-checkbox-row"><input type="checkbox" class="exercise-chk" value="Upper Body Push Exercises" checked> Upper Body Push</label>
-        <label class="exercise-checkbox-row"><input type="checkbox" class="exercise-chk" value="Upper Body Pull Exercises" checked> Upper Body Pull</label>
-        <label class="exercise-checkbox-row"><input type="checkbox" class="exercise-chk" value="Lower Body Compound Lift" checked> Lower Body Lifting</label>
-        <label class="exercise-checkbox-row"><input type="checkbox" class="exercise-chk" value="Core Workout" checked> Core</label>
+        <label class="exercise-checkbox-row"><input type="checkbox" class="exercise-chk" value="Upper Body Push Exercises" data-sets="3" data-reps="10" checked> Upper Body Push</label>
+        <label class="exercise-checkbox-row"><input type="checkbox" class="exercise-chk" value="Upper Body Pull Exercises" data-sets="3" data-reps="10" checked> Upper Body Pull</label>
+        <label class="exercise-checkbox-row"><input type="checkbox" class="exercise-chk" value="Lower Body Compound Lift" data-sets="4" data-reps="8" checked> Lower Body Compound Lift</label>
+        <label class="exercise-checkbox-row"><input type="checkbox" class="exercise-chk" value="Core Workout" data-sets="3" data-reps="15" checked> Core Workout</label>
       `;
     }
 
@@ -1048,16 +1101,7 @@ const APEX_APP = {
 
     document.getElementById("log-sport-uuid").value = existingLog ? existingLog.uuid : "";
 
-    // Reset sliders
-    ['legs', 'back', 'chest', 'shoulders', 'arms', 'core', 'fatigue'].forEach(cat => {
-      const slider = document.getElementById(`log-sport-sore-${cat}`);
-      const label = document.getElementById(`lbl-sport-sore-${cat}`);
-      if (slider && label) {
-        const val = existingLog && existingLog.soreness && existingLog.soreness[cat] ? existingLog.soreness[cat] : 1;
-        slider.value = val;
-        label.innerText = val;
-      }
-    });
+    // Sliders removed, automatic fatigue calculated instead
 
     document.getElementById("modal-sport-title").innerText = existingLog ? `Edit ${sportType.toUpperCase()} Session` : `Log ${sportType.toUpperCase()} Session`;
     document.getElementById("log-sport-type").value = sportType;
@@ -1988,6 +2032,140 @@ const APEX_APP = {
         clearBtn.classList.add("hidden");
       }
     }
+  },
+
+  updateStravaUI() {
+    const btnAuth = document.getElementById("btn-auth-strava");
+    const btnSync = document.getElementById("btn-sync-strava");
+    const btnDisconnect = document.getElementById("btn-disconnect-strava");
+    if (!btnAuth || !btnSync || !btnDisconnect) return;
+
+    if (this.state.stravaAccessToken) {
+      btnAuth.classList.add("hidden");
+      btnSync.classList.remove("hidden");
+      btnDisconnect.classList.remove("hidden");
+    } else {
+      btnAuth.classList.remove("hidden");
+      btnSync.classList.add("hidden");
+      btnDisconnect.classList.add("hidden");
+    }
+  },
+
+  authenticateStrava() {
+    if (!this.state.stravaClientId) return;
+    const redirectUri = window.location.origin + window.location.pathname;
+    const authUrl = `https://www.strava.com/oauth/authorize?client_id=${this.state.stravaClientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&approval_prompt=force&scope=activity:read_all`;
+    window.location.href = authUrl;
+  },
+
+  handleStravaCallback() {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    if (code && this.state.stravaClientId && this.state.stravaClientSecret) {
+      // Exchange code for token
+      fetch("https://www.strava.com/oauth/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_id: this.state.stravaClientId,
+          client_secret: this.state.stravaClientSecret,
+          code: code,
+          grant_type: "authorization_code"
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.access_token) {
+          this.state.stravaAccessToken = data.access_token;
+          localStorage.setItem("apex_strava_access_token", data.access_token);
+          this.updateStravaUI();
+          // Clear query params
+          window.history.replaceState({}, document.title, window.location.pathname);
+          alert("Strava successfully connected!");
+        }
+      })
+      .catch(err => {
+        console.error("Strava Auth Error:", err);
+        alert("Failed to authenticate with Strava.");
+      });
+    }
+  },
+
+  syncStravaActivities() {
+    if (!this.state.stravaAccessToken) return;
+    document.getElementById("btn-sync-strava").innerText = "Syncing...";
+    
+    // Fetch last 30 days
+    const after = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000);
+    
+    fetch(`https://www.strava.com/api/v3/athlete/activities?after=${after}&per_page=30`, {
+      headers: { "Authorization": `Bearer ${this.state.stravaAccessToken}` }
+    })
+    .then(res => {
+      if (res.status === 401) {
+        throw new Error("Token expired");
+      }
+      return res.json();
+    })
+    .then(activities => {
+      let importedCount = 0;
+      activities.forEach(activity => {
+        // Only import runs, rides, walks, hikes, swims, etc
+        if (["Run", "Ride", "Hike", "Walk", "Swim", "Rowing"].includes(activity.type)) {
+          // Check if already exists (using Strava ID as UUID)
+          const uuid = "strava_" + activity.id;
+          if (!this.state.loggedWorkouts.find(w => w.uuid === uuid) && !this.state.deletedLogs.includes(uuid)) {
+            const dateStr = activity.start_date_local.split('T')[0];
+            const durationMins = Math.round(activity.moving_time / 60);
+            
+            // Map Strava type to our types
+            let localType = "running";
+            if (activity.type === "Ride") localType = "cycling";
+            else if (activity.type === "Hike" || activity.type === "Walk") localType = "hiking";
+            else if (activity.type === "Swim") localType = "swimming";
+            
+            // Calculate a synthetic intensity (1-10) based on suffer score or average speed
+            let intensity = 5;
+            if (activity.suffer_score) {
+              intensity = Math.min(10, Math.max(5, Math.round(activity.suffer_score / 15)));
+            }
+            
+            const newLog = {
+              uuid: uuid,
+              id: localType + "_session",
+              type: localType,
+              date: dateStr,
+              duration: durationMins,
+              intensity: intensity,
+              exercises: [],
+              notes: `Strava ${activity.type}: ${(activity.distance / 1609.34).toFixed(2)} mi. ${activity.name}`,
+              intention: "endurance", // Sport cardio generally falls to endurance fatigue profile
+              isStrava: true
+            };
+            this.state.loggedWorkouts.push(newLog);
+            importedCount++;
+          }
+        }
+      });
+      
+      this.saveLogsToStorage();
+      document.getElementById("settings-strava-sync-time").innerText = "Last Sync: Just now";
+      document.getElementById("btn-sync-strava").innerText = "Sync Recent Activities";
+      alert(`Successfully synced ${importedCount} new activities from Strava.`);
+      this.render();
+    })
+    .catch(err => {
+      console.error("Strava Sync Error:", err);
+      if (err.message === "Token expired") {
+        alert("Strava token expired. Please re-connect.");
+        this.state.stravaAccessToken = null;
+        localStorage.removeItem("apex_strava_access_token");
+        this.updateStravaUI();
+      } else {
+        alert("Failed to sync Strava activities.");
+      }
+      document.getElementById("btn-sync-strava").innerText = "Sync Recent Activities";
+    });
   },
 
   fetchAndRenderCalendarList() {

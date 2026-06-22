@@ -18,6 +18,7 @@ const APEX_AI = {
             description: { type: "STRING" },
             duration: { type: "INTEGER" },
             intensity: { type: "INTEGER" },
+            intention: { type: "STRING" },
             exercises: {
               type: "ARRAY",
               items: {
@@ -32,7 +33,7 @@ const APEX_AI = {
               }
             }
           },
-          required: ["name", "description", "duration", "intensity", "exercises"]
+          required: ["name", "description", "duration", "intensity", "intention", "exercises"]
         }
       }
     };
@@ -82,6 +83,7 @@ const APEX_AI = {
               description: { type: "string" },
               duration: { type: "integer" },
               intensity: { type: "integer" },
+              intention: { type: "string" },
               exercises: {
                 type: "array",
                 items: {
@@ -97,7 +99,7 @@ const APEX_AI = {
                 }
               }
             },
-            required: ["name", "description", "duration", "intensity", "exercises"],
+            required: ["name", "description", "duration", "intensity", "intention", "exercises"],
             additionalProperties: false
           }
         }
@@ -151,6 +153,7 @@ Follow these coaching rules:
 7. Ensure your workout matches their overall summer targets (e.g. fat loss, calorie budgets, workout frequency).
 8. Vary the exercises! Look at their recent logs and avoid repeating the exact same routine they did yesterday or two days ago.
 9. Name the workout beautifully and clearly (e.g. "Apex Vertical Boost (Leg Sparing)", "Rotator Cuff & Hip Mobility Shield", etc.).
+10. Explicitly state the workout "intention". It MUST be exactly one of: "hypertrophy", "strength", "endurance", "power", or "recovery".
 
 You must respond strictly with a JSON object matching the requested schema. No markdown formatting or extra text.`;
 
@@ -244,9 +247,10 @@ Provide output strictly matching the JSON schema.`;
               title: { type: "STRING", description: "Name of the workout or Rest Day" },
               duration: { type: "INTEGER", description: "Duration in minutes" },
               startTime: { type: "STRING", description: "Recommended start time HH:MM based on schedule gaps" },
+              intention: { type: "STRING", description: "Workout intention" },
               reasoning: { type: "STRING", description: "Brief reason for this choice" }
             },
-            required: ["date", "decision", "title", "duration", "startTime", "reasoning"]
+            required: ["date", "decision", "title", "duration", "startTime", "intention", "reasoning"]
           }
         }
       },
@@ -254,7 +258,7 @@ Provide output strictly matching the JSON schema.`;
     };
 
     if (provider === 'gemini') {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
       const payload = {
         contents: [{ parts: [{ text: systemPrompt + "\n\n" + userPrompt }] }],
         generationConfig: {
@@ -303,9 +307,10 @@ Provide output strictly matching the JSON schema.`;
                       title: { type: "string" },
                       duration: { type: "integer" },
                       startTime: { type: "string" },
+                      intention: { type: "string" },
                       reasoning: { type: "string" }
                     },
-                    required: ["date", "decision", "title", "duration", "startTime", "reasoning"],
+                    required: ["date", "decision", "title", "duration", "startTime", "intention", "reasoning"],
                     additionalProperties: false
                   }
                 }
