@@ -793,7 +793,10 @@ const APEX_APP = {
       });
 
       const legsSore = parseInt(document.getElementById("log-workout-sore-legs").value);
+      const backSore = parseInt(document.getElementById("log-workout-sore-back").value);
+      const chestSore = parseInt(document.getElementById("log-workout-sore-chest").value);
       const shouldersSore = parseInt(document.getElementById("log-workout-sore-shoulders").value);
+      const armsSore = parseInt(document.getElementById("log-workout-sore-arms").value);
       const coreSore = parseInt(document.getElementById("log-workout-sore-core").value);
       const fatigueSore = parseInt(document.getElementById("log-workout-sore-fatigue").value);
       
@@ -808,7 +811,7 @@ const APEX_APP = {
         intensity: intensity,
         exercises: checkedExercises,
         notes: notes,
-        soreness: { legs: legsSore, shoulders: shouldersSore, core: coreSore, fatigue: fatigueSore }
+        soreness: { legs: legsSore, back: backSore, chest: chestSore, shoulders: shouldersSore, arms: armsSore, core: coreSore, fatigue: fatigueSore }
       };
 
       const existingIndex = uuidField ? this.state.loggedWorkouts.findIndex(w => w.uuid === uuidField) : -1;
@@ -843,7 +846,10 @@ const APEX_APP = {
       const notes = document.getElementById("log-sport-notes").value;
 
       const legsSore = parseInt(document.getElementById("log-sport-sore-legs").value);
+      const backSore = parseInt(document.getElementById("log-sport-sore-back").value);
+      const chestSore = parseInt(document.getElementById("log-sport-sore-chest").value);
       const shouldersSore = parseInt(document.getElementById("log-sport-sore-shoulders").value);
+      const armsSore = parseInt(document.getElementById("log-sport-sore-arms").value);
       const coreSore = parseInt(document.getElementById("log-sport-sore-core").value);
       const fatigueSore = parseInt(document.getElementById("log-sport-sore-fatigue").value);
       
@@ -858,7 +864,7 @@ const APEX_APP = {
         intensity: intensity,
         exercises: [],
         notes: notes,
-        soreness: { legs: legsSore, shoulders: shouldersSore, core: coreSore, fatigue: fatigueSore }
+        soreness: { legs: legsSore, back: backSore, chest: chestSore, shoulders: shouldersSore, arms: armsSore, core: coreSore, fatigue: fatigueSore }
       };
 
       const existingIndex = uuidField ? this.state.loggedWorkouts.findIndex(w => w.uuid === uuidField) : -1;
@@ -903,7 +909,7 @@ const APEX_APP = {
     });
     // Sliders range input updates to reflect values dynamically in labels
     const updateSliderLabels = (prefix) => {
-      ['legs', 'shoulders', 'core', 'fatigue'].forEach(cat => {
+      ['legs', 'back', 'chest', 'shoulders', 'arms', 'core', 'fatigue'].forEach(cat => {
         const slider = document.getElementById(`log-${prefix}-sore-${cat}`);
         const label = document.getElementById(`lbl-${prefix}-sore-${cat}`);
         if (slider && label) {
@@ -926,11 +932,11 @@ const APEX_APP = {
     document.getElementById("log-workout-uuid").value = existingLog ? existingLog.uuid : "";
 
     // Reset sliders
-    ['legs', 'shoulders', 'core', 'fatigue'].forEach(cat => {
+    ['legs', 'back', 'chest', 'shoulders', 'arms', 'core', 'fatigue'].forEach(cat => {
       const slider = document.getElementById(`log-workout-sore-${cat}`);
       const label = document.getElementById(`lbl-workout-sore-${cat}`);
       if (slider && label) {
-        const val = existingLog && existingLog.soreness ? existingLog.soreness[cat] : 1;
+        const val = existingLog && existingLog.soreness && existingLog.soreness[cat] ? existingLog.soreness[cat] : 1;
         slider.value = val;
         label.innerText = val;
       }
@@ -1043,11 +1049,11 @@ const APEX_APP = {
     document.getElementById("log-sport-uuid").value = existingLog ? existingLog.uuid : "";
 
     // Reset sliders
-    ['legs', 'shoulders', 'core', 'fatigue'].forEach(cat => {
+    ['legs', 'back', 'chest', 'shoulders', 'arms', 'core', 'fatigue'].forEach(cat => {
       const slider = document.getElementById(`log-sport-sore-${cat}`);
       const label = document.getElementById(`lbl-sport-sore-${cat}`);
       if (slider && label) {
-        const val = existingLog && existingLog.soreness ? existingLog.soreness[cat] : 1;
+        const val = existingLog && existingLog.soreness && existingLog.soreness[cat] ? existingLog.soreness[cat] : 1;
         slider.value = val;
         label.innerText = val;
       }
@@ -1308,7 +1314,10 @@ const APEX_APP = {
     };
 
     updateSorenessBar("legs");
+    updateSorenessBar("back");
+    updateSorenessBar("chest");
     updateSorenessBar("shoulders");
+    updateSorenessBar("arms");
     updateSorenessBar("core");
 
     // Update Overall Fatigue stats
@@ -1332,7 +1341,7 @@ const APEX_APP = {
     // Update Recovery Status badge
     const recoveryBadge = document.getElementById("recovery-status-badge");
     if (recoveryBadge) {
-      const maxSore = Math.max(currentSoreness.legs, currentSoreness.shoulders, currentSoreness.core, currentSoreness.fatigue);
+      const maxSore = Math.max(currentSoreness.legs, currentSoreness.back, currentSoreness.chest, currentSoreness.shoulders, currentSoreness.arms, currentSoreness.core, currentSoreness.fatigue);
       if (maxSore >= 4.0) {
         recoveryBadge.className = "badge badge-danger";
         recoveryBadge.innerText = "Exhausted / Sore";
@@ -1343,6 +1352,94 @@ const APEX_APP = {
         recoveryBadge.className = "badge badge-success";
         recoveryBadge.innerText = "Feeling Fresh";
       }
+    }
+
+    // Atrophy Tracker Logic
+    const getDaysSinceTrained = (muscleGroup) => {
+      const sortedLogs = [...this.state.loggedWorkouts]
+        .filter(w => w.date <= this.state.currentDateStr)
+        .sort((a, b) => new Date(b.date + 'T00:00:00') - new Date(a.date + 'T00:00:00'));
+
+      for (let log of sortedLogs) {
+        let hit = false;
+        
+        // 1. Lifting: check exercises
+        if (log.type === 'lifting' && log.exercises && typeof APEX_ANALYTICS !== "undefined") {
+          // Temporarily duplicate the classifier if needed, or rely on APEX_ANALYTICS
+          const classifyExercise = (name) => {
+            const nameLower = name.toLowerCase();
+            if (["squat", "plyo", "skip", "rdl", "deadlift", "calf", "leg", "lunges", "lunge", "step-up", "glute", "hip", "bound", "skater", "jumping", "jump", "pogo", "tibial", "heel", "quad", "hamstring", "cleans"].some(kw => nameLower.includes(kw))) return "legs";
+            if (["row", "pull-up", "chin-up", "lat", "back", "shrug", "pull"].some(kw => nameLower.includes(kw))) return "back";
+            if (["bench", "chest", "pec", "push-up", "fly", "pushup"].some(kw => nameLower.includes(kw))) return "chest";
+            if (["overhead", "press", "shoulder", "delt", "rotator", "cuff", "scapular", "lateral raise", "front raise"].some(kw => nameLower.includes(kw))) return "shoulders";
+            if (["arm", "curl", "tricep", "bicep", "forearm", "extension", "pushdown", "kickback"].some(kw => nameLower.includes(kw))) return "arms";
+            if (["twist", "raise", "plank", "crunch", "sit-up", "core", "abs", "oblique", "roll", "belly", "breath", "cat-cow"].some(kw => nameLower.includes(kw))) return "core";
+            return null;
+          };
+          
+          log.exercises.forEach(exName => {
+             if (classifyExercise(exName) === muscleGroup) hit = true;
+          });
+        }
+        
+        // 2. Default soreness check (sports or predefined templates)
+        if (!hit && typeof APEX_RECOMMENDER !== "undefined") {
+           const defSore = APEX_RECOMMENDER.getDefaultSorenessImpact(log);
+           if (defSore[muscleGroup] >= 2.0) hit = true;
+        }
+        
+        if (hit) {
+          const tDate = new Date(this.state.currentDateStr + 'T00:00:00');
+          const lDate = new Date(log.date + 'T00:00:00');
+          return Math.floor((tDate - lDate) / (1000 * 60 * 60 * 24));
+        }
+      }
+      return null;
+    };
+
+    const atrophyList = document.getElementById("atrophy-tracker-list");
+    if (atrophyList) {
+      atrophyList.innerHTML = "";
+      const groups = [
+        { key: "legs", name: "Legs" },
+        { key: "back", name: "Back" },
+        { key: "chest", name: "Chest" },
+        { key: "shoulders", name: "Shoulders" },
+        { key: "arms", name: "Arms" },
+        { key: "core", name: "Core" }
+      ];
+      
+      groups.forEach(g => {
+        const days = getDaysSinceTrained(g.key);
+        let badgeClass = "badge-ready";
+        let statusText = "Ready";
+        let daysText = days === null ? "Never" : `${days}d ago`;
+        
+        if (days === null) {
+          badgeClass = "badge-atrophy";
+          statusText = "Untrained";
+        } else if (days <= 3) {
+          badgeClass = "badge-recovering";
+          statusText = "Recovering";
+        } else if (days <= 7) {
+          badgeClass = "badge-ready";
+          statusText = "Ready";
+        } else if (days <= 14) {
+          badgeClass = "badge-detraining";
+          statusText = "Detraining";
+        } else {
+          badgeClass = "badge-atrophy";
+          statusText = "Atrophy Risk";
+        }
+        
+        const div = document.createElement("div");
+        div.className = "atrophy-item";
+        div.innerHTML = `
+          <span style="font-weight: 500;">${g.name} <span style="font-size: 0.8rem; color: var(--color-text-secondary); font-weight: normal; margin-left: 4px;">(${daysText})</span></span>
+          <span class="badge ${badgeClass}">${statusText}</span>
+        `;
+        atrophyList.appendChild(div);
+      });
     }
 
     // 4. Shred progress

@@ -43,8 +43,12 @@ const APEX_ANALYTICS = {
     });
 
     // 2. Calculate cumulative muscle stress and categories volume
+    // 2. Calculate cumulative muscle stress and categories volume
     let legsStress = 0;
+    let backStress = 0;
+    let chestStress = 0;
     let shouldersStress = 0;
+    let armsStress = 0;
     let coreStress = 0;
 
     const categoryData = {
@@ -60,21 +64,26 @@ const APEX_ANALYTICS = {
     // Exercise classification logic
     const classifyExercise = (name) => {
       const nameLower = name.toLowerCase();
-      // Legs / Lower Body
-      const legKeywords = ["squat", "plyo", "skip", "rdl", "deadlift", "calf", "leg", "lunges", "lunge", "step-up", "glute", "hip", "bound", "skater", "jumping", "jump", "pogo", "tibial", "heel", "quad", "calf", "hamstring", "cleans"];
-      // Shoulders / Upper Body
-      const shoulderKeywords = ["overhead", "bench", "press", "pull-up", "chin-up", "rotation", "push-up", "arm", "shoulder", "chest", "row", "rotator", "cuff", "scapular", "clean", "delt", "shrug", "back", "push", "pull", "upper"];
-      // Core / Mobility / Flexibility
-      const coreKeywords = ["twist", "raise", "plank", "mobility", "stretch", "flexibility", "foam", "roll", "flow", "crunch", "sit-up", "core", "abs", "cat-cow", "belly", "breath"];
-
-      if (legKeywords.some(kw => nameLower.includes(kw))) return "legs";
-      if (shoulderKeywords.some(kw => nameLower.includes(kw))) return "shoulders";
-      if (coreKeywords.some(kw => nameLower.includes(kw))) return "core";
+      // Legs & Glutes
+      if (["squat", "plyo", "skip", "rdl", "deadlift", "calf", "leg", "lunges", "lunge", "step-up", "glute", "hip", "bound", "skater", "jumping", "jump", "pogo", "tibial", "heel", "quad", "hamstring", "cleans"].some(kw => nameLower.includes(kw))) return "legs";
+      // Back
+      if (["row", "pull-up", "chin-up", "lat", "back", "shrug", "pull"].some(kw => nameLower.includes(kw))) return "back";
+      // Chest
+      if (["bench", "chest", "pec", "push-up", "fly", "pushup"].some(kw => nameLower.includes(kw))) return "chest";
+      // Shoulders
+      if (["overhead", "press", "shoulder", "delt", "rotator", "cuff", "scapular", "lateral raise", "front raise"].some(kw => nameLower.includes(kw))) return "shoulders";
+      // Arms
+      if (["arm", "curl", "tricep", "bicep", "forearm", "extension", "pushdown", "kickback"].some(kw => nameLower.includes(kw))) return "arms";
+      // Core / Mobility
+      if (["twist", "raise", "plank", "crunch", "sit-up", "core", "abs", "oblique", "roll", "belly", "breath", "cat-cow"].some(kw => nameLower.includes(kw))) return "core";
       return null;
     };
 
     let legsExercisesCount = 0;
+    let backExercisesCount = 0;
+    let chestExercisesCount = 0;
     let shouldersExercisesCount = 0;
+    let armsExercisesCount = 0;
     let coreExercisesCount = 0;
 
     filteredLogs.forEach(log => {
@@ -100,7 +109,10 @@ const APEX_ANALYTICS = {
         log.exercises.forEach(exName => {
           const muscleGroup = classifyExercise(exName);
           if (muscleGroup === "legs") legsExercisesCount++;
+          else if (muscleGroup === "back") backExercisesCount++;
+          else if (muscleGroup === "chest") chestExercisesCount++;
           else if (muscleGroup === "shoulders") shouldersExercisesCount++;
+          else if (muscleGroup === "arms") armsExercisesCount++;
           else if (muscleGroup === "core") coreExercisesCount++;
         });
       }
@@ -115,36 +127,45 @@ const APEX_ANALYTICS = {
         // Multiply by intensity (RPE) as a proxy for total workload/volume
         const intensityFactor = Number(log.intensity || 5) / 5; // standardizes around factor 1.0 at RPE 5
         legsStress += Number(logSore.legs || 1.0) * intensityFactor;
+        backStress += Number(logSore.back || 1.0) * intensityFactor;
+        chestStress += Number(logSore.chest || 1.0) * intensityFactor;
         shouldersStress += Number(logSore.shoulders || 1.0) * intensityFactor;
+        armsStress += Number(logSore.arms || 1.0) * intensityFactor;
         coreStress += Number(logSore.core || 1.0) * intensityFactor;
       }
     });
 
     // Update heatmap text displays
-    const shouldersVal = document.getElementById("stat-val-shoulders");
-    const coreVal = document.getElementById("stat-val-core");
     const legsVal = document.getElementById("stat-val-legs");
+    const backVal = document.getElementById("stat-val-back");
+    const chestVal = document.getElementById("stat-val-chest");
+    const shouldersVal = document.getElementById("stat-val-shoulders");
+    const armsVal = document.getElementById("stat-val-arms");
+    const coreVal = document.getElementById("stat-val-core");
 
-    if (shouldersVal) shouldersVal.innerText = shouldersStress.toFixed(0) + " pts";
-    if (coreVal) coreVal.innerText = coreStress.toFixed(0) + " pts";
     if (legsVal) legsVal.innerText = legsStress.toFixed(0) + " pts";
+    if (backVal) backVal.innerText = backStress.toFixed(0) + " pts";
+    if (chestVal) chestVal.innerText = chestStress.toFixed(0) + " pts";
+    if (shouldersVal) shouldersVal.innerText = shouldersStress.toFixed(0) + " pts";
+    if (armsVal) armsVal.innerText = armsStress.toFixed(0) + " pts";
+    if (coreVal) coreVal.innerText = coreStress.toFixed(0) + " pts";
 
     // 3. Update SVG Heat Map colors and glow
-    this.updateSVGHeatmap(shouldersStress, coreStress, legsStress, rangeDays);
+    this.updateSVGHeatmap(legsStress, backStress, chestStress, shouldersStress, armsStress, coreStress, rangeDays);
 
     // 4. Update Chart.js Workout distribution
     this.renderWorkoutTypeChart(categoryData);
 
-    // 5. Update Chart.js Lifting Muscle Focus Doughnut Chart
-    this.renderLiftingFocusChart(legsExercisesCount, shouldersExercisesCount, coreExercisesCount);
+    // 5. Update Chart.js Lifting Muscle Focus Radar Chart
+    this.renderLiftingFocusChart(legsExercisesCount, backExercisesCount, chestExercisesCount, shouldersExercisesCount, armsExercisesCount, coreExercisesCount);
   },
 
-  updateSVGHeatmap(shoulders, core, legs, rangeDays) {
+  updateSVGHeatmap(legs, back, chest, shoulders, arms, core, rangeDays) {
     // Define workload reference thresholds by range
     let threshold = 15; // 7 days
     if (rangeDays === '30') threshold = 45;
     else if (rangeDays === '90') threshold = 120;
-    else if (rangeDays === 'all') threshold = Math.max(80, shoulders, core, legs);
+    else if (rangeDays === 'all') threshold = Math.max(80, shoulders, core, legs, back, chest, arms);
 
     const getGlowColor = (val, maxVal) => {
       if (val === 0) return { fill: "rgba(255, 255, 255, 0.05)", glow: "none" };
@@ -152,20 +173,17 @@ const APEX_ANALYTICS = {
       
       // Gradient from Success Green -> Warning Orange -> Danger Red
       if (pct < 30) {
-        // Low activity: Teal
         return {
           fill: `rgba(16, 185, 129, ${0.15 + (pct/30) * 0.25})`,
           glow: `drop-shadow(0 0 4px rgba(16, 185, 129, ${pct/30}))`
         };
       } else if (pct < 70) {
-        // Moderate activity: Orange/Amber
         const factor = (pct - 30) / 40;
         return {
           fill: `rgba(245, 158, 11, ${0.35 + factor * 0.25})`,
           glow: `drop-shadow(0 0 6px rgba(245, 158, 11, ${0.5 + factor * 0.3}))`
         };
       } else {
-        // High activity: Blazing Red/Purple
         const factor = (pct - 70) / 30;
         return {
           fill: `rgba(239, 68, 68, ${0.55 + factor * 0.25})`,
@@ -174,26 +192,35 @@ const APEX_ANALYTICS = {
       }
     };
 
-    const shouldersUI = getGlowColor(shoulders, threshold);
-    const coreUI = getGlowColor(core, threshold);
-    const legsUI = getGlowColor(legs, threshold);
+    const styles = {
+      legs: getGlowColor(legs, threshold),
+      back: getGlowColor(back, threshold),
+      chest: getGlowColor(chest, threshold),
+      shoulders: getGlowColor(shoulders, threshold),
+      arms: getGlowColor(arms, threshold),
+      core: getGlowColor(core, threshold)
+    };
 
-    const shouldersPath = document.querySelector("#heatmap-shoulders path");
-    const corePath = document.querySelector("#heatmap-core path");
-    const legsPath = document.querySelector("#heatmap-legs path");
+    const applyStyle = (selector, styleObj) => {
+      const el = document.querySelector(selector);
+      if (el) {
+        el.style.fill = styleObj.fill;
+        el.style.filter = styleObj.glow;
+      }
+    };
 
-    if (shouldersPath) {
-      shouldersPath.style.fill = shouldersUI.fill;
-      shouldersPath.style.filter = shouldersUI.glow;
-    }
-    if (corePath) {
-      corePath.style.fill = coreUI.fill;
-      corePath.style.filter = coreUI.glow;
-    }
-    if (legsPath) {
-      legsPath.style.fill = legsUI.fill;
-      legsPath.style.filter = legsUI.glow;
-    }
+    // Front paths
+    applyStyle("#heatmap-shoulders-front path", styles.shoulders);
+    applyStyle("#heatmap-chest path", styles.chest);
+    applyStyle("#heatmap-arms-front path", styles.arms);
+    applyStyle("#heatmap-core-front path", styles.core);
+    applyStyle("#heatmap-legs-front path", styles.legs);
+
+    // Back paths
+    applyStyle("#heatmap-shoulders-back path", styles.shoulders);
+    applyStyle("#heatmap-back path", styles.back);
+    applyStyle("#heatmap-arms-back path", styles.arms);
+    applyStyle("#heatmap-legs-back path", styles.legs);
   },
 
   renderWorkoutTypeChart(categoryData) {
@@ -318,7 +345,7 @@ const APEX_ANALYTICS = {
     });
   },
 
-  renderLiftingFocusChart(legs, shoulders, core) {
+  renderLiftingFocusChart(legs, back, chest, shoulders, arms, core) {
     const canvas = document.getElementById("chart-lifting-focus");
     if (!canvas) return;
 
@@ -329,38 +356,43 @@ const APEX_ANALYTICS = {
       this.liftingFocusChart.destroy();
     }
 
-    const total = legs + shoulders + core;
+    const total = legs + back + chest + shoulders + arms + core;
 
     this.liftingFocusChart = new Chart(ctx, {
-      type: 'doughnut',
+      type: 'radar',
       data: {
-        labels: ["Legs", "Shoulders/Upper", "Core/Mobility"],
+        labels: ["Legs", "Back", "Chest", "Shoulders", "Arms", "Core"],
         datasets: [{
-          data: [legs, shoulders, core],
-          backgroundColor: [
-            "rgba(16, 185, 129, 0.7)",  // Legs: Green
-            "rgba(255, 94, 0, 0.7)",   // Shoulders: Orange
-            "rgba(245, 158, 11, 0.7)"  // Core: Yellow
-          ],
-          borderColor: [
-            "#10b981",
-            "#ff5e00",
-            "#f59e0b"
-          ],
-          borderWidth: 1.5
+          label: 'Completed Exercises',
+          data: [legs, back, chest, shoulders, arms, core],
+          backgroundColor: "rgba(255, 94, 0, 0.2)",
+          borderColor: "#ff5e00",
+          pointBackgroundColor: "#ff5e00",
+          pointBorderColor: "#fff",
+          pointHoverBackgroundColor: "#fff",
+          pointHoverBorderColor: "#ff5e00",
+          borderWidth: 2
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
+        scales: {
+          r: {
+            angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+            pointLabels: {
               color: '#a1a1aa',
               font: { family: 'Outfit', size: 11 }
+            },
+            ticks: {
+              display: false,
+              backdropColor: 'transparent'
             }
-          },
+          }
+        },
+        plugins: {
+          legend: { display: false },
           tooltip: {
             titleFont: { family: 'Outfit' },
             bodyFont: { family: 'Outfit' },
@@ -368,12 +400,11 @@ const APEX_ANALYTICS = {
               label: function(context) {
                 const val = context.raw || 0;
                 const pct = total > 0 ? ((val / total) * 100).toFixed(0) : 0;
-                return `${context.label}: ${val} exercises (${pct}%)`;
+                return ` ${val} exercises (${pct}%)`;
               }
             }
           }
-        },
-        cutout: '60%'
+        }
       }
     });
   }

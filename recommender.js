@@ -18,7 +18,7 @@ const APEX_RECOMMENDER = {
 
   // Dynamic Soreness Simulation
   calculateSoreness(dateStr, loggedWorkouts) {
-    const runningState = { legs: 1.0, shoulders: 1.0, core: 1.0, fatigue: 1.0 };
+    const runningState = { legs: 1.0, back: 1.0, chest: 1.0, shoulders: 1.0, arms: 1.0, core: 1.0, fatigue: 1.0 };
     
     // Sort logged workouts chronologically (oldest first)
     const sortedLogs = [...loggedWorkouts]
@@ -47,7 +47,10 @@ const APEX_RECOMMENDER = {
       // 1. Decay at the START of the day (except on the first log day where we initialize)
       if (curKey !== sortedLogs[0].date) {
         runningState.legs = Math.max(1.0, runningState.legs - 1.0);
+        runningState.back = Math.max(1.0, runningState.back - 1.0);
+        runningState.chest = Math.max(1.0, runningState.chest - 1.0);
         runningState.shoulders = Math.max(1.0, runningState.shoulders - 1.0);
+        runningState.arms = Math.max(1.0, runningState.arms - 1.0);
         runningState.core = Math.max(1.0, runningState.core - 1.0);
         runningState.fatigue = Math.max(1.0, runningState.fatigue - 1.0);
       }
@@ -58,7 +61,10 @@ const APEX_RECOMMENDER = {
         // If it's a mobility flow, apply recovery boost first
         if (log.id === 'active_mobility') {
           runningState.legs = Math.max(1.0, runningState.legs - 1.5);
+          runningState.back = Math.max(1.0, runningState.back - 1.5);
+          runningState.chest = Math.max(1.0, runningState.chest - 1.5);
           runningState.shoulders = Math.max(1.0, runningState.shoulders - 1.5);
+          runningState.arms = Math.max(1.0, runningState.arms - 1.5);
           runningState.core = Math.max(1.0, runningState.core - 1.5);
           runningState.fatigue = Math.max(1.0, runningState.fatigue - 1.5);
         }
@@ -68,7 +74,10 @@ const APEX_RECOMMENDER = {
         
         // Update running state as the max of current soreness and logged soreness
         runningState.legs = Math.max(runningState.legs, Number(logSoreness.legs || 1.0));
+        runningState.back = Math.max(runningState.back, Number(logSoreness.back || 1.0));
+        runningState.chest = Math.max(runningState.chest, Number(logSoreness.chest || 1.0));
         runningState.shoulders = Math.max(runningState.shoulders, Number(logSoreness.shoulders || 1.0));
+        runningState.arms = Math.max(runningState.arms, Number(logSoreness.arms || 1.0));
         runningState.core = Math.max(runningState.core, Number(logSoreness.core || 1.0));
         runningState.fatigue = Math.max(runningState.fatigue, Number(logSoreness.fatigue || 1.0));
       });
@@ -81,23 +90,23 @@ const APEX_RECOMMENDER = {
   },
   
   getDefaultSorenessImpact(log) {
-    if (log.id === 'sand_plyos') return { legs: 4.0, shoulders: 1.0, core: 2.0, fatigue: 3.0 };
-    if (log.id === 'athletic_strength_a') return { legs: 3.5, shoulders: 3.0, core: 2.5, fatigue: 3.5 };
-    if (log.id === 'athletic_strength_b') return { legs: 4.0, shoulders: 3.5, core: 3.0, fatigue: 3.5 };
-    if (log.id === 'saq_agility') return { legs: 3.5, shoulders: 1.0, core: 2.0, fatigue: 3.0 };
-    if (log.id === 'shoulder_knee_prehab') return { legs: 1.5, shoulders: 2.0, core: 1.0, fatigue: 2.0 };
-    if (log.id === 'express_circuit') return { legs: 3.0, shoulders: 2.5, core: 2.5, fatigue: 3.0 };
-    if (log.id === 'active_mobility') return { legs: 1.0, shoulders: 1.0, core: 1.0, fatigue: 1.0 };
+    if (log.id === 'sand_plyos') return { legs: 4.0, back: 1.0, chest: 1.0, shoulders: 1.0, arms: 1.0, core: 2.0, fatigue: 3.0 };
+    if (log.id === 'athletic_strength_a') return { legs: 3.5, back: 2.5, chest: 3.0, shoulders: 3.0, arms: 2.0, core: 2.5, fatigue: 3.5 };
+    if (log.id === 'athletic_strength_b') return { legs: 4.0, back: 3.5, chest: 2.0, shoulders: 3.5, arms: 2.5, core: 3.0, fatigue: 3.5 };
+    if (log.id === 'saq_agility') return { legs: 3.5, back: 1.0, chest: 1.0, shoulders: 1.0, arms: 1.0, core: 2.0, fatigue: 3.0 };
+    if (log.id === 'shoulder_knee_prehab') return { legs: 1.5, back: 1.5, chest: 1.0, shoulders: 2.0, arms: 1.0, core: 1.0, fatigue: 2.0 };
+    if (log.id === 'express_circuit') return { legs: 3.0, back: 2.0, chest: 2.0, shoulders: 2.5, arms: 2.0, core: 2.5, fatigue: 3.0 };
+    if (log.id === 'active_mobility') return { legs: 1.0, back: 1.0, chest: 1.0, shoulders: 1.0, arms: 1.0, core: 1.0, fatigue: 1.0 };
     
-    if (log.type === 'volleyball') return { legs: 3.5, shoulders: 4.0, core: 2.5, fatigue: 4.0 };
-    if (log.type === 'football') return { legs: 4.0, shoulders: 2.0, core: 3.0, fatigue: 4.0 };
-    if (log.type === 'running') return { legs: 3.5, shoulders: 1.0, core: 2.0, fatigue: 3.0 };
-    if (log.type === 'basketball') return { legs: 4.0, shoulders: 2.0, core: 2.5, fatigue: 3.5 };
-    if (log.type === 'hiking') return { legs: 3.5, shoulders: 1.0, core: 2.0, fatigue: 3.0 };
-    if (log.type === 'surfing') return { legs: 2.0, shoulders: 4.5, core: 3.0, fatigue: 3.5 };
-    if (log.type === 'tennis') return { legs: 3.5, shoulders: 3.5, core: 2.5, fatigue: 3.5 };
+    if (log.type === 'volleyball') return { legs: 3.5, back: 2.0, chest: 1.0, shoulders: 4.0, arms: 2.0, core: 2.5, fatigue: 4.0 };
+    if (log.type === 'football') return { legs: 4.0, back: 1.5, chest: 1.0, shoulders: 2.0, arms: 1.0, core: 3.0, fatigue: 4.0 };
+    if (log.type === 'running') return { legs: 3.5, back: 1.0, chest: 1.0, shoulders: 1.0, arms: 1.0, core: 2.0, fatigue: 3.0 };
+    if (log.type === 'basketball') return { legs: 4.0, back: 1.5, chest: 1.5, shoulders: 2.0, arms: 1.5, core: 2.5, fatigue: 3.5 };
+    if (log.type === 'hiking') return { legs: 3.5, back: 1.5, chest: 1.0, shoulders: 1.0, arms: 1.0, core: 2.0, fatigue: 3.0 };
+    if (log.type === 'surfing') return { legs: 2.0, back: 4.0, chest: 2.0, shoulders: 4.5, arms: 3.5, core: 3.0, fatigue: 3.5 };
+    if (log.type === 'tennis') return { legs: 3.5, back: 2.5, chest: 1.5, shoulders: 3.5, arms: 2.5, core: 2.5, fatigue: 3.5 };
     
-    return { legs: 1.0, shoulders: 1.0, core: 1.0, fatigue: 1.0 };
+    return { legs: 1.0, back: 1.0, chest: 1.0, shoulders: 1.0, arms: 1.0, core: 1.0, fatigue: 1.0 };
   },
 
   // Core Recommendation Function

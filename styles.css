@@ -1722,3 +1722,23 @@ input:checked + .slider:before {
   padding: 6px 8px;
   border-radius: 4px;
 }
+/* Atrophy Tracker Badges */
+.badge-recovering { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+.badge-ready { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+.badge-detraining { background: rgba(255, 94, 0, 0.15); color: #ff8a4c; border: 1px solid rgba(255, 94, 0, 0.3); }
+.badge-atrophy { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+.atrophy-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--color-surface-hover);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+}
+
+/* Heatmap SVG Flex adjustments */
+.heatmap-container svg {
+  max-height: 280px;
+}

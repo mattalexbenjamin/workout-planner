@@ -98,11 +98,12 @@
           <h4>Muscle Soreness & Recovery</h4>
           <span class="badge badge-accent" id="recovery-status-badge">Feeling Fresh</span>
         </div>
-        <div class="card-body grid-2-col">
-          <div class="soreness-meters">
+        <div class="card-body" style="display: flex; flex-direction: column; gap: 20px;">
+          <!-- 6-Zone Soreness Meters -->
+          <div class="soreness-meters" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
             <div class="soreness-meter-item">
               <div class="soreness-label-row">
-                <span class="metric-label">Legs</span>
+                <span class="metric-label" title="Legs & Glutes (Quadriceps, Hamstrings, Calves, Glutes)">Legs</span>
                 <span class="soreness-value-text" id="soreness-val-legs">1.0/5</span>
               </div>
               <div class="progress-bar-container">
@@ -111,7 +112,25 @@
             </div>
             <div class="soreness-meter-item">
               <div class="soreness-label-row">
-                <span class="metric-label">Shoulders</span>
+                <span class="metric-label" title="Back (Lats, Traps, Erector Spinae)">Back</span>
+                <span class="soreness-value-text" id="soreness-val-back">1.0/5</span>
+              </div>
+              <div class="progress-bar-container">
+                <div id="soreness-bar-back" class="progress-fill soreness-fill green" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="soreness-meter-item">
+              <div class="soreness-label-row">
+                <span class="metric-label" title="Chest (Pectorals)">Chest</span>
+                <span class="soreness-value-text" id="soreness-val-chest">1.0/5</span>
+              </div>
+              <div class="progress-bar-container">
+                <div id="soreness-bar-chest" class="progress-fill soreness-fill green" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="soreness-meter-item">
+              <div class="soreness-label-row">
+                <span class="metric-label" title="Shoulders (Deltoids)">Shoulders</span>
                 <span class="soreness-value-text" id="soreness-val-shoulders">1.0/5</span>
               </div>
               <div class="progress-bar-container">
@@ -120,7 +139,16 @@
             </div>
             <div class="soreness-meter-item">
               <div class="soreness-label-row">
-                <span class="metric-label">Core</span>
+                <span class="metric-label" title="Arms (Biceps, Triceps, Forearms)">Arms</span>
+                <span class="soreness-value-text" id="soreness-val-arms">1.0/5</span>
+              </div>
+              <div class="progress-bar-container">
+                <div id="soreness-bar-arms" class="progress-fill soreness-fill green" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="soreness-meter-item">
+              <div class="soreness-label-row">
+                <span class="metric-label" title="Core (Abdominals, Obliques)">Core</span>
                 <span class="soreness-value-text" id="soreness-val-core">1.0/5</span>
               </div>
               <div class="progress-bar-container">
@@ -128,14 +156,23 @@
               </div>
             </div>
           </div>
-          <div class="metric-stats">
+          
+          <div class="metric-stats" style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px; display: flex; justify-content: space-around;">
             <div class="mini-stat">
-              <span class="stat-label">Overall Fatigue</span>
+              <span class="stat-label" title="Overall CNS & Systemic Fatigue">Overall Fatigue</span>
               <span class="stat-value" id="soreness-val-fatigue">1.0 / 5</span>
             </div>
             <div class="mini-stat">
-              <span class="stat-label">Active Recovery Boost</span>
+              <span class="stat-label" title="Boost from recent active mobility/recovery flow">Recovery Boost</span>
               <span class="stat-value text-success">-1.5 / flow</span>
+            </div>
+          </div>
+
+          <!-- Muscle Atrophy & Stimulus Tracker -->
+          <div class="atrophy-tracker-container" style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;">
+            <h5 style="margin-bottom: 10px; font-size: 0.85rem; color: var(--color-text-secondary);">Muscle Atrophy & Stimulus Tracker</h5>
+            <div id="atrophy-tracker-list" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+              <!-- Dynamically populated by JS -->
             </div>
           </div>
         </div>
@@ -176,7 +213,7 @@
         <div class="card-header">
           <h4>Log Workout or Activity</h4>
         </div>
-        <div class="card-body quick-actions-grid">
+        <div class="card-body quick-actions-grid" style="grid-template-columns: repeat(4, 1fr);">
           <button class="quick-log-btn" data-type="lifting">
             <span class="icon-circle text-orange">🏋️‍♂️</span>
             <span>Weightlifting</span>
@@ -192,6 +229,22 @@
           <button class="quick-log-btn" data-type="football">
             <span class="icon-circle text-blue">🏈</span>
             <span>Flag Football</span>
+          </button>
+          <button class="quick-log-btn" data-type="basketball">
+            <span class="icon-circle text-orange">🏀</span>
+            <span>Basketball</span>
+          </button>
+          <button class="quick-log-btn" data-type="hiking">
+            <span class="icon-circle text-green">🥾</span>
+            <span>Hiking</span>
+          </button>
+          <button class="quick-log-btn" data-type="surfing">
+            <span class="icon-circle text-blue">🏄‍♂️</span>
+            <span>Surfing</span>
+          </button>
+          <button class="quick-log-btn" data-type="tennis">
+            <span class="icon-circle text-yellow">🎾</span>
+            <span>Tennis</span>
           </button>
         </div>
       <!-- Next Scheduled Session Widget -->
@@ -335,38 +388,81 @@
       </div>
 
       <div class="analytics-grid">
-        <!-- Left: SVG Muscle Heat Map -->
+        <!-- Left: SVG Muscle Heat Map (Front & Back) -->
         <div class="dashboard-card analytics-card">
           <h3>Muscle Stress Footprint</h3>
           <p class="card-description">Glow intensity represents cumulative training volume and RPE over the selected range.</p>
-          <div class="heatmap-container">
-            <svg id="svg-body-heatmap" viewBox="0 0 200 400" width="100%" height="320">
-              <!-- Body silhouette backdrop -->
-              <path class="body-base" d="M100 20 C112 20 120 28 120 40 C120 52 112 60 100 60 C88 60 80 52 80 40 C80 28 88 20 100 20 M100 60 L100 70 M60 90 C70 85 85 80 100 80 C115 80 130 85 140 90 L145 130 C148 140 145 150 142 160 L130 220 L135 270 L125 360 C123 370 120 380 115 380 C110 380 108 375 107 365 L102 270 L98 270 L93 365 C92 375 90 380 85 380 C80 380 77 370 75 360 L65 270 L70 220 L58 160 C55 150 52 140 55 130 Z" fill="#1e1e24" stroke="#2d2d38" stroke-width="2"/>
-              
-              <!-- Shoulders Zone -->
-              <g id="heatmap-shoulders" class="muscle-group">
-                <path d="M75 80 C83 77 92 75 100 75 C108 75 117 77 125 80 C135 83 140 88 142 95 L145 130 C146 138 144 145 142 150 L138 152 L132 110 L125 105 L100 110 L75 105 L68 110 L62 152 L58 150 C56 145 54 138 55 130 L58 95 C60 88 65 83 75 80 Z" />
-                <title>Shoulders, Chest & Arms</title>
-              </g>
-              
-              <!-- Core Zone -->
-              <g id="heatmap-core" class="muscle-group">
-                <path d="M76 107 L124 107 L128 150 L125 210 L75 210 L72 150 Z" />
-                <title>Core & Lower Back</title>
-              </g>
-              
-              <!-- Legs Zone -->
-              <g id="heatmap-legs" class="muscle-group">
-                <path d="M75 212 L125 212 L130 268 L124 358 C122 368 120 376 115 376 C110 376 108 372 107 362 L102 268 L98 268 L93 362 C92 372 90 376 85 376 C80 376 78 368 76 358 L70 268 Z" />
-                <title>Legs & Glutes</title>
-              </g>
-            </svg>
+          <div class="heatmap-container" style="display: flex; justify-content: center; gap: 20px;">
+            <!-- FRONT SILHOUETTE -->
+            <div style="flex: 1; text-align: center;">
+              <h5 style="margin-bottom:5px; font-size:0.75rem;">FRONT</h5>
+              <svg id="svg-body-heatmap-front" viewBox="0 0 200 400" width="100%" height="280">
+                <!-- Base Silhouette Front -->
+                <path class="body-base" d="M100 20 C112 20 120 28 120 40 C120 52 112 60 100 60 C88 60 80 52 80 40 C80 28 88 20 100 20 M100 60 L100 70 M60 90 C70 85 85 80 100 80 C115 80 130 85 140 90 L145 130 C148 140 145 150 142 160 L130 220 L135 270 L125 360 C123 370 120 380 115 380 C110 380 108 375 107 365 L102 270 L98 270 L93 365 C92 375 90 380 85 380 C80 380 77 370 75 360 L65 270 L70 220 L58 160 C55 150 52 140 55 130 Z" fill="#1e1e24" stroke="#2d2d38" stroke-width="2"/>
+                
+                <!-- Shoulders (Front) -->
+                <g id="heatmap-shoulders-front" class="muscle-group">
+                  <path d="M75 80 C83 77 92 75 100 75 C108 75 117 77 125 80 C135 83 140 88 142 95 L145 110 L132 110 L125 105 L100 110 L75 105 L68 110 L55 110 L58 95 C60 88 65 83 75 80 Z" />
+                </g>
+                
+                <!-- Chest -->
+                <g id="heatmap-chest" class="muscle-group">
+                  <path d="M75 105 L125 105 L120 140 L80 140 Z" />
+                </g>
+                
+                <!-- Arms (Front/Biceps/Forearms) -->
+                <g id="heatmap-arms-front" class="muscle-group">
+                  <path d="M55 110 L68 110 L62 152 L58 150 C56 145 54 138 55 130 Z M132 110 L145 110 L145 130 C146 138 144 145 142 150 L138 152 Z M58 160 C55 150 52 140 55 130 L62 152 L70 220 L65 220 Z M142 160 C148 140 145 150 145 130 L138 152 L130 220 L135 220 Z" />
+                </g>
+                
+                <!-- Core (Front) -->
+                <g id="heatmap-core-front" class="muscle-group">
+                  <path d="M80 140 L120 140 L125 210 L75 210 Z" />
+                </g>
+                
+                <!-- Legs (Front/Quads) -->
+                <g id="heatmap-legs-front" class="muscle-group">
+                  <path d="M75 212 L125 212 L130 268 L124 358 C122 368 120 376 115 376 C110 376 108 372 107 362 L102 268 L98 268 L93 362 C92 372 90 376 85 376 C80 376 78 368 76 358 L70 268 Z" />
+                </g>
+              </svg>
+            </div>
+            
+            <!-- BACK SILHOUETTE -->
+            <div style="flex: 1; text-align: center;">
+              <h5 style="margin-bottom:5px; font-size:0.75rem;">BACK</h5>
+              <svg id="svg-body-heatmap-back" viewBox="0 0 200 400" width="100%" height="280">
+                <!-- Base Silhouette Back -->
+                <path class="body-base" d="M100 20 C112 20 120 28 120 40 C120 52 112 60 100 60 C88 60 80 52 80 40 C80 28 88 20 100 20 M100 60 L100 70 M60 90 C70 85 85 80 100 80 C115 80 130 85 140 90 L145 130 C148 140 145 150 142 160 L130 220 L135 270 L125 360 C123 370 120 380 115 380 C110 380 108 375 107 365 L102 270 L98 270 L93 365 C92 375 90 380 85 380 C80 380 77 370 75 360 L65 270 L70 220 L58 160 C55 150 52 140 55 130 Z" fill="#1e1e24" stroke="#2d2d38" stroke-width="2"/>
+                
+                <!-- Shoulders (Back) -->
+                <g id="heatmap-shoulders-back" class="muscle-group">
+                  <path d="M75 80 C83 77 92 75 100 75 C108 75 117 77 125 80 C135 83 140 88 142 95 L145 110 L132 110 L125 105 L100 110 L75 105 L68 110 L55 110 L58 95 C60 88 65 83 75 80 Z" />
+                </g>
+                
+                <!-- Back (Upper Back / Lats / Lower Back) -->
+                <g id="heatmap-back" class="muscle-group">
+                  <path d="M75 105 L125 105 L125 210 L75 210 Z" />
+                </g>
+                
+                <!-- Arms (Back/Triceps) -->
+                <g id="heatmap-arms-back" class="muscle-group">
+                  <path d="M55 110 L68 110 L62 152 L58 150 C56 145 54 138 55 130 Z M132 110 L145 110 L145 130 C146 138 144 145 142 150 L138 152 Z M58 160 C55 150 52 140 55 130 L62 152 L70 220 L65 220 Z M142 160 C148 140 145 150 145 130 L138 152 L130 220 L135 220 Z" />
+                </g>
+                
+                <!-- Legs (Back/Hamstrings/Glutes/Calves) -->
+                <g id="heatmap-legs-back" class="muscle-group">
+                  <path d="M75 212 L125 212 L130 268 L124 358 C122 368 120 376 115 376 C110 376 108 372 107 362 L102 268 L98 268 L93 362 C92 372 90 376 85 376 C80 376 78 368 76 358 L70 268 Z" />
+                </g>
+              </svg>
+            </div>
           </div>
-          <div id="analytics-heatmap-stats" class="heatmap-stats">
-            <div class="stat-row"><span class="stat-dot shoulders-dot"></span> Shoulders/Upper: <span id="stat-val-shoulders" class="stat-val">0 pts</span></div>
-            <div class="stat-row"><span class="stat-dot core-dot"></span> Core/Lower Back: <span id="stat-val-core" class="stat-val">0 pts</span></div>
-            <div class="stat-row"><span class="stat-dot legs-dot"></span> Legs/Lower Body: <span id="stat-val-legs" class="stat-val">0 pts</span></div>
+          <div id="analytics-heatmap-stats" class="heatmap-stats" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px;">
+            <div class="stat-row"><span class="stat-dot" style="background-color: var(--color-success);"></span> Legs: <span id="stat-val-legs" class="stat-val">0 pts</span></div>
+            <div class="stat-row"><span class="stat-dot" style="background-color: var(--color-blue);"></span> Back: <span id="stat-val-back" class="stat-val">0 pts</span></div>
+            <div class="stat-row"><span class="stat-dot" style="background-color: var(--color-danger);"></span> Chest: <span id="stat-val-chest" class="stat-val">0 pts</span></div>
+            <div class="stat-row"><span class="stat-dot" style="background-color: var(--color-accent);"></span> Shoulders: <span id="stat-val-shoulders" class="stat-val">0 pts</span></div>
+            <div class="stat-row"><span class="stat-dot" style="background-color: var(--color-purple);"></span> Arms: <span id="stat-val-arms" class="stat-val">0 pts</span></div>
+            <div class="stat-row"><span class="stat-dot" style="background-color: var(--color-yellow);"></span> Core: <span id="stat-val-core" class="stat-val">0 pts</span></div>
           </div>
         </div>
 
@@ -572,21 +668,33 @@
 
         <div class="form-group">
           <label>Post-Session Soreness & Fatigue</label>
-          <div class="soreness-sliders-grid">
+          <div class="soreness-sliders-grid" style="grid-template-columns: repeat(2, 1fr);">
             <div class="slider-group">
               <label for="log-workout-sore-legs">Legs: <span id="lbl-workout-sore-legs">1</span>/5</label>
               <input type="range" id="log-workout-sore-legs" min="1" max="5" step="1" value="1" class="form-input slider-input">
+            </div>
+            <div class="slider-group">
+              <label for="log-workout-sore-back">Back: <span id="lbl-workout-sore-back">1</span>/5</label>
+              <input type="range" id="log-workout-sore-back" min="1" max="5" step="1" value="1" class="form-input slider-input">
+            </div>
+            <div class="slider-group">
+              <label for="log-workout-sore-chest">Chest: <span id="lbl-workout-sore-chest">1</span>/5</label>
+              <input type="range" id="log-workout-sore-chest" min="1" max="5" step="1" value="1" class="form-input slider-input">
             </div>
             <div class="slider-group">
               <label for="log-workout-sore-shoulders">Shoulders: <span id="lbl-workout-sore-shoulders">1</span>/5</label>
               <input type="range" id="log-workout-sore-shoulders" min="1" max="5" step="1" value="1" class="form-input slider-input">
             </div>
             <div class="slider-group">
+              <label for="log-workout-sore-arms">Arms: <span id="lbl-workout-sore-arms">1</span>/5</label>
+              <input type="range" id="log-workout-sore-arms" min="1" max="5" step="1" value="1" class="form-input slider-input">
+            </div>
+            <div class="slider-group">
               <label for="log-workout-sore-core">Core: <span id="lbl-workout-sore-core">1</span>/5</label>
               <input type="range" id="log-workout-sore-core" min="1" max="5" step="1" value="1" class="form-input slider-input">
             </div>
-            <div class="slider-group">
-              <label for="log-workout-sore-fatigue">Fatigue: <span id="lbl-workout-sore-fatigue">1</span>/5</label>
+            <div class="slider-group" style="grid-column: span 2;">
+              <label for="log-workout-sore-fatigue">Fatigue (Overall): <span id="lbl-workout-sore-fatigue">1</span>/5</label>
               <input type="range" id="log-workout-sore-fatigue" min="1" max="5" step="1" value="1" class="form-input slider-input">
             </div>
           </div>
@@ -640,21 +748,33 @@
 
         <div class="form-group">
           <label>Post-Session Soreness & Fatigue</label>
-          <div class="soreness-sliders-grid">
+          <div class="soreness-sliders-grid" style="grid-template-columns: repeat(2, 1fr);">
             <div class="slider-group">
               <label for="log-sport-sore-legs">Legs: <span id="lbl-sport-sore-legs">1</span>/5</label>
               <input type="range" id="log-sport-sore-legs" min="1" max="5" step="1" value="1" class="form-input slider-input">
+            </div>
+            <div class="slider-group">
+              <label for="log-sport-sore-back">Back: <span id="lbl-sport-sore-back">1</span>/5</label>
+              <input type="range" id="log-sport-sore-back" min="1" max="5" step="1" value="1" class="form-input slider-input">
+            </div>
+            <div class="slider-group">
+              <label for="log-sport-sore-chest">Chest: <span id="lbl-sport-sore-chest">1</span>/5</label>
+              <input type="range" id="log-sport-sore-chest" min="1" max="5" step="1" value="1" class="form-input slider-input">
             </div>
             <div class="slider-group">
               <label for="log-sport-sore-shoulders">Shoulders: <span id="lbl-sport-sore-shoulders">1</span>/5</label>
               <input type="range" id="log-sport-sore-shoulders" min="1" max="5" step="1" value="1" class="form-input slider-input">
             </div>
             <div class="slider-group">
+              <label for="log-sport-sore-arms">Arms: <span id="lbl-sport-sore-arms">1</span>/5</label>
+              <input type="range" id="log-sport-sore-arms" min="1" max="5" step="1" value="1" class="form-input slider-input">
+            </div>
+            <div class="slider-group">
               <label for="log-sport-sore-core">Core: <span id="lbl-sport-sore-core">1</span>/5</label>
               <input type="range" id="log-sport-sore-core" min="1" max="5" step="1" value="1" class="form-input slider-input">
             </div>
-            <div class="slider-group">
-              <label for="log-sport-sore-fatigue">Fatigue: <span id="lbl-sport-sore-fatigue">1</span>/5</label>
+            <div class="slider-group" style="grid-column: span 2;">
+              <label for="log-sport-sore-fatigue">Fatigue (Overall): <span id="lbl-sport-sore-fatigue">1</span>/5</label>
               <input type="range" id="log-sport-sore-fatigue" min="1" max="5" step="1" value="1" class="form-input slider-input">
             </div>
           </div>
