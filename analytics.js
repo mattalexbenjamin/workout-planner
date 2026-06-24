@@ -63,7 +63,10 @@ const APEX_ANALYTICS = {
 
     // Exercise classification logic
     const classifyExercise = (name) => {
-      const nameLower = name.toLowerCase();
+      if (!name) return null;
+      const strName = typeof name === 'string' ? name : name.name;
+      if (!strName) return null;
+      const nameLower = strName.toLowerCase();
       // Legs & Glutes
       if (["squat", "plyo", "skip", "rdl", "deadlift", "calf", "leg", "lunges", "lunge", "step-up", "glute", "hip", "bound", "skater", "jumping", "jump", "pogo", "tibial", "heel", "quad", "hamstring", "cleans"].some(kw => nameLower.includes(kw))) return "legs";
       // Back

@@ -122,7 +122,7 @@ const APEX_RECOMMENDER = {
          let vol = sets * reps;
          totalVolume += vol;
          
-         const n = name.toLowerCase();
+         const n = (name || "").toLowerCase();
          if (n.includes('squat') || n.includes('leg') || n.includes('lunge') || n.includes('deadlift')) muscleLoad.legs += vol;
          if (n.includes('pull') || n.includes('row') || n.includes('back')) muscleLoad.back += vol;
          if (n.includes('push') || n.includes('bench') || n.includes('chest') || n.includes('pec')) muscleLoad.chest += vol;

@@ -1459,7 +1459,10 @@ const APEX_APP = {
         if (log.type === 'lifting' && log.exercises && typeof APEX_ANALYTICS !== "undefined") {
           // Temporarily duplicate the classifier if needed, or rely on APEX_ANALYTICS
           const classifyExercise = (name) => {
-            const nameLower = name.toLowerCase();
+            if (!name) return null;
+            const strName = typeof name === 'string' ? name : name.name;
+            if (!strName) return null;
+            const nameLower = strName.toLowerCase();
             if (["squat", "plyo", "skip", "rdl", "deadlift", "calf", "leg", "lunges", "lunge", "step-up", "glute", "hip", "bound", "skater", "jumping", "jump", "pogo", "tibial", "heel", "quad", "hamstring", "cleans"].some(kw => nameLower.includes(kw))) return "legs";
             if (["row", "pull-up", "chin-up", "lat", "back", "shrug", "pull"].some(kw => nameLower.includes(kw))) return "back";
             if (["bench", "chest", "pec", "push-up", "fly", "pushup"].some(kw => nameLower.includes(kw))) return "chest";
