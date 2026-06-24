@@ -412,7 +412,7 @@ body {
 
 /* Workout details box inside recommendation */
 .workout-details-box {
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-sm);
   padding: 14px;
@@ -420,7 +420,7 @@ body {
 }
 
 .workout-details-box .text-secondary {
-  color: #E5E7EB !important;
+  color: var(--color-text-secondary) !important;
 }
 
 .workout-details-box h4 {
@@ -917,11 +917,12 @@ body {
 
 .history-item-notes {
   font-size: 0.8rem;
-  color: #E5E7EB;
-  background-color: rgba(255, 255, 255, 0.05);
-  padding: 8px 10px;
+  color: var(--color-text-secondary);
+  background-color: var(--bg-primary);
+  padding: 8px 12px;
   border-radius: 6px;
   font-style: normal;
+  border: 1px solid var(--border-color);
 }
 
 .history-item-actions {
@@ -1186,7 +1187,7 @@ input:checked + .slider:before {
 }
 
 .modal-exercises-list {
-  background-color: rgba(0,0,0,0.2);
+  background-color: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-sm);
   padding: 12px;

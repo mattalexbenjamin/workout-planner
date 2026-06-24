@@ -1072,7 +1072,7 @@ const APEX_APP = {
             <strong>${ex.name}</strong>
             <a href="${getExerciseGuideUrl(ex.name)}" target="_blank" rel="noopener" class="exercise-video-link" title="Watch Form Guide">🎬 Guide</a>
             - ${ex.sets}x${ex.reps} <br>
-            <small class="text-muted">${ex.notes}</small>
+            <small class="text-secondary">${ex.notes}</small>
           </span>
         `;
         exercisesContainer.appendChild(row);
