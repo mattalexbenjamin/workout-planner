@@ -1428,7 +1428,7 @@ const APEX_APP = {
         
         // 2. Default soreness check (sports or predefined templates)
         if (!hit && typeof APEX_RECOMMENDER !== "undefined") {
-           const defSore = APEX_RECOMMENDER.getDefaultSorenessImpact(log);
+           const defSore = APEX_RECOMMENDER.calculateFatigueImpact(log);
            if (defSore[muscleGroup] >= 2.0) hit = true;
         }
         
