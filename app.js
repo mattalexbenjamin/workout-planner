@@ -1714,8 +1714,7 @@ const APEX_APP = {
         nextCard.classList.remove("hidden");
         const nextLog = futurePlanned[0];
         
-        const template = ATHLETIC_WORKOUTS.find(w => w.id === nextLog.id);
-        const title = template ? template.name : (nextLog.id ? nextLog.id.replace(/_/g, ' ').toUpperCase() : 'Workout');
+        const title = this.getWorkoutTitle(nextLog);
         
         const sportIcons = {
           lifting: "🏋️‍♂️",
@@ -1740,6 +1739,18 @@ const APEX_APP = {
         nextCard.classList.add("hidden");
       }
     }
+  },
+
+  getWorkoutTitle(log) {
+    if (log.id) {
+      const template = ATHLETIC_WORKOUTS.find(w => w.id === log.id);
+      if (template && template.name) return template.name;
+    }
+    if (log.name && log.name.trim() !== "") return log.name;
+    if (log.id && log.id.startsWith("ai_generated_")) return "AI Coach Workout";
+    if (log.id && log.id.startsWith("custom_lift")) return "Custom Lift Session";
+    if (log.id) return log.id.toUpperCase().replace(/_/g, ' ');
+    return "Workout Session";
   },
 
   renderCalendarTab() {
@@ -1798,7 +1809,7 @@ const APEX_APP = {
             tennis: "🎾"
           };
           const typeIcon = sportIcons[log.type] || "📅";
-          const title = log.id ? ATHLETIC_WORKOUTS.find(w => w.id === log.id)?.name || log.name || log.id.toUpperCase().replace(/_/g, ' ') : log.name || 'Workout';
+          const title = this.getWorkoutTitle(log);
           
           if (log.isPlanned) {
             contentHTML += `
@@ -1967,9 +1978,7 @@ const APEX_APP = {
     }
 
     sorted.forEach((log, index) => {
-      // Find template details if it was a template
-      const template = ATHLETIC_WORKOUTS.find(w => w.id === log.id);
-      const title = template ? template.name : (log.id ? log.id.replace('_', ' ').toUpperCase() : 'Custom Session');
+      const title = this.getWorkoutTitle(log);
       
       const typeBadge = log.type === 'lifting' ? 'badge-accent' : log.type === 'volleyball' ? 'badge-warning' : log.type === 'football' ? 'badge-info' : 'badge-success';
 
