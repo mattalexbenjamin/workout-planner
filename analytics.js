@@ -405,7 +405,6 @@ const APEX_ANALYTICS = {
           }
         }
       }
-      }
     });
   },
 
