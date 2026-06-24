@@ -2,37 +2,37 @@
 
 :root {
   /* Core Colors */
-  --bg-primary: #0a0a0c;
-  --bg-surface: #141418;
-  --bg-surface-elevated: #1e1e24;
+  --bg-primary: #F0F2F5;
+  --bg-surface: #FFFFFF;
+  --bg-surface-elevated: #FAFAFA;
   
-  --color-accent: #ff5e00;         /* Athletic Blazing Orange */
-  --color-accent-hover: #e05300;
-  --color-accent-dim: rgba(255, 94, 0, 0.15);
+  --color-accent: #1877F2;
+  --color-accent-hover: #166FE5;
+  --color-accent-dim: #E7F3FF;
   
-  --color-text-primary: #f4f4f7;
-  --color-text-secondary: #a1a1aa;
-  --color-text-muted: #71717a;
+  --color-text-primary: #1C1E21;
+  --color-text-secondary: #65676B;
+  --color-text-muted: #BCC0C4;
   
-  --color-success: #10b981;        /* Shredding / Complete Green */
-  --color-success-dim: rgba(16, 185, 129, 0.1);
-  --color-warning: #f59e0b;        /* Volleyball / Warmup Yellow */
-  --color-warning-dim: rgba(245, 158, 11, 0.1);
-  --color-info: #3b82f6;           /* Football / Running Blue */
-  --color-info-dim: rgba(59, 130, 246, 0.1);
-  --color-danger: #ef4444;
-  --color-danger-dim: rgba(239, 68, 68, 0.15);
+  --color-success: #31A24C;
+  --color-success-dim: rgba(49, 162, 76, 0.1);
+  --color-warning: #F0AD4E;
+  --color-warning-dim: rgba(240, 173, 78, 0.1);
+  --color-info: #0A3066;
+  --color-info-dim: rgba(10, 48, 102, 0.1);
+  --color-danger: #E41E3F;
+  --color-danger-dim: rgba(228, 30, 63, 0.1);
   
   /* Borders & Shadows */
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-color-focus: rgba(255, 94, 0, 0.4);
+  --border-color: #E4E6EB;
+  --border-color-focus: rgba(24, 119, 242, 0.4);
   --border-radius-sm: 8px;
-  --border-radius-md: 16px;
+  --border-radius-md: 12px;
   --border-radius-lg: 24px;
   
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.6);
-  --shadow-accent: 0 4px 20px rgba(255, 94, 0, 0.25);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-accent: 0 2px 4px rgba(24, 119, 242, 0.15);
   
   /* Layout Transitions */
   --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -50,7 +50,7 @@
 body {
   background-color: var(--bg-primary);
   color: var(--color-text-primary);
-  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   line-height: 1.5;
   padding-bottom: 90px; /* Space for bottom navigation */
   min-height: 100vh;
@@ -64,7 +64,7 @@ body {
   width: 100%;
   max-width: 600px;
   padding: 20px 16px;
-  background-color: rgba(10, 10, 12, 0.85);
+  background-color: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(12px);
   position: sticky;
   top: 0;
@@ -116,7 +116,7 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
   border: 1px solid var(--border-color);
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: rgba(0, 0, 0, 0.03);
 }
 
 .status-dot {
@@ -166,7 +166,7 @@ body {
   transform: translateX(-50%);
   width: 100%;
   max-width: 600px;
-  background-color: rgba(20, 20, 24, 0.9);
+  background-color: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
   border-top: 1px solid var(--border-color);
   z-index: 100;
@@ -224,12 +224,12 @@ body {
 }
 
 .dashboard-card:hover {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(0, 0, 0, 0.12);
 }
 
 .dashboard-card.highlighted {
   border-color: var(--color-accent-dim);
-  background: radial-gradient(circle at top right, rgba(255, 94, 0, 0.08), var(--bg-surface) 60%);
+  background: radial-gradient(circle at top right, rgba(24, 119, 242, 0.08), var(--bg-surface) 60%);
   box-shadow: var(--shadow-accent), var(--shadow-sm);
 }
 
@@ -285,7 +285,7 @@ body {
   font-family: inherit;
   font-weight: 600;
   font-size: 0.9rem;
-  padding: 12px 20px;
+  padding: 12px 24px;
   border-radius: var(--border-radius-sm);
   cursor: pointer;
   transition: var(--transition-fast);
@@ -298,23 +298,23 @@ body {
 .btn-primary {
   background-color: var(--color-accent);
   color: #fff;
-  box-shadow: 0 4px 12px rgba(255, 94, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(24, 119, 242, 0.3);
 }
 
 .btn-primary:hover {
   background-color: var(--color-accent-hover);
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(255, 94, 0, 0.4);
+  box-shadow: 0 6px 16px rgba(24, 119, 242, 0.4);
 }
 
 .btn-secondary {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: rgba(0, 0, 0, 0.08);
   color: var(--color-text-primary);
   border: 1px solid var(--border-color);
 }
 
 .btn-secondary:hover {
-  background-color: rgba(255, 255, 255, 0.12);
+  background-color: rgba(0, 0, 0, 0.12);
 }
 
 .btn-danger {
@@ -335,12 +335,12 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(0, 0, 0, 0.05);
   border: 1px solid var(--border-color);
 }
 
 .btn-icon:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(0, 0, 0, 0.1);
   color: var(--color-accent);
 }
 
@@ -370,7 +370,7 @@ body {
 .badge-accent {
   background-color: var(--color-accent-dim);
   color: var(--color-accent);
-  border: 1px solid rgba(255, 94, 0, 0.2);
+  border: 1px solid rgba(24, 119, 242, 0.2);
 }
 
 .badge-success {
@@ -457,7 +457,7 @@ body {
 
 .context-event-item {
   font-size: 0.8rem;
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: rgba(0, 0, 0, 0.03);
   padding: 8px 12px;
   border-radius: 6px;
   border-left: 3px solid var(--color-accent);
@@ -499,7 +499,7 @@ body {
 }
 
 .progress-bar-container {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(0, 0, 0, 0.05);
   border-radius: 10px;
   height: 8px;
   overflow: hidden;
@@ -540,7 +540,7 @@ body {
 }
 
 .quick-log-btn {
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: rgba(0, 0, 0, 0.03);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-sm);
   padding: 12px 6px;
@@ -558,9 +558,9 @@ body {
 }
 
 .quick-log-btn:hover {
-  background-color: rgba(255, 255, 255, 0.07);
+  background-color: rgba(0, 0, 0, 0.07);
   transform: translateY(-2px);
-  border-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(0, 0, 0, 0.15);
 }
 
 .icon-circle {
@@ -568,7 +568,7 @@ body {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.04);
+  background-color: rgba(0, 0, 0, 0.04);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -613,8 +613,8 @@ body {
 
 .day-card.today {
   border-color: var(--color-accent);
-  box-shadow: 0 0 12px rgba(255, 94, 0, 0.15);
-  background: linear-gradient(90deg, rgba(255, 94, 0, 0.04) 0%, var(--bg-surface) 100%);
+  box-shadow: 0 0 12px rgba(24, 119, 242, 0.15);
+  background: linear-gradient(90deg, rgba(24, 119, 242, 0.04) 0%, var(--bg-surface) 100%);
 }
 
 .day-info {
@@ -690,7 +690,7 @@ body {
   border-left: 3px solid var(--color-info);
 }
 .cal-event-badge.gcal {
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: rgba(0, 0, 0, 0.03);
   color: var(--color-text-secondary);
   border-left: 3px solid var(--color-text-muted);
   font-weight: 500;
@@ -726,7 +726,7 @@ body {
 }
 
 .pill {
-  background-color: rgba(255,255,255,0.04);
+  background-color: rgba(0,0,0,0.04);
   border: 1px solid var(--border-color);
   color: var(--color-text-secondary);
   padding: 8px 16px;
@@ -743,7 +743,7 @@ body {
   background-color: var(--color-accent);
   color: #fff;
   border-color: var(--color-accent);
-  box-shadow: 0 4px 12px rgba(255, 94, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(24, 119, 242, 0.2);
 }
 
 .workout-grid {
@@ -762,7 +762,7 @@ body {
 }
 
 .library-card:hover {
-  border-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(0, 0, 0, 0.15);
   transform: translateY(-1px);
 }
 
@@ -974,7 +974,7 @@ body {
 
 .settings-card.highlight-card {
   border-color: var(--color-accent-dim);
-  background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(255, 94, 0, 0.05) 100%);
+  background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(24, 119, 242, 0.05) 100%);
 }
 
 .form-group {
@@ -1057,7 +1057,7 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(255,255,255,0.08);
+  background-color: rgba(0,0,0,0.08);
   border: 1px solid var(--border-color);
   transition: .3s;
 }
@@ -1081,7 +1081,7 @@ input:checked + .slider {
 input:checked + .slider:before {
   transform: translateX(24px);
   background-color: #fff;
-  box-shadow: 0 0 6px rgba(255,255,255,0.5);
+  box-shadow: 0 0 6px rgba(0,0,0,0.5);
 }
 
 .slider.round {
@@ -1345,7 +1345,7 @@ input:checked + .slider:before {
   font-weight: 800;
   color: var(--color-accent);
   background-color: var(--color-accent-dim);
-  border: 1px solid rgba(255, 94, 0, 0.25);
+  border: 1px solid rgba(24, 119, 242, 0.25);
   border-radius: 4px;
   padding: 1px 5px;
   margin-left: 6px;
@@ -1550,8 +1550,8 @@ input:checked + .slider:before {
 }
 
 .muscle-group path {
-  fill: rgba(255, 255, 255, 0.05);
-  stroke: rgba(255, 255, 255, 0.1);
+  fill: rgba(0, 0, 0, 0.05);
+  stroke: rgba(0, 0, 0, 0.1);
   stroke-width: 1.5;
   transition: fill 0.4s ease, filter 0.4s ease;
   cursor: pointer;
@@ -1616,7 +1616,7 @@ input:checked + .slider:before {
 /* Planned vs Completed Workouts */
 .cal-event-badge.planned-workout {
   border: 1.5px dashed currentColor !important;
-  background-color: rgba(255, 255, 255, 0.02) !important;
+  background-color: rgba(0, 0, 0, 0.02) !important;
   font-style: italic;
   border-left: none !important;
 }
@@ -1631,7 +1631,7 @@ input:checked + .slider:before {
   align-items: center;
   gap: 16px;
   padding: 12px;
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: rgba(0, 0, 0, 0.02);
   border-radius: var(--border-radius-sm);
   border: 1px dashed var(--border-color);
 }
@@ -1667,7 +1667,7 @@ input:checked + .slider:before {
 /* Weekly Planner & Preview Modal Styles */
 .weekly-planner-card {
   border: 1px solid var(--color-accent-dim);
-  background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(255, 94, 0, 0.05) 100%);
+  background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(24, 119, 242, 0.05) 100%);
 }
 
 .plan-preview-item {
@@ -1688,7 +1688,7 @@ input:checked + .slider:before {
 
 .plan-preview-item.workout-day {
   border-color: var(--color-accent-dim);
-  background: rgba(255, 94, 0, 0.05);
+  background: rgba(24, 119, 242, 0.05);
 }
 
 .plan-preview-header {
@@ -1725,7 +1725,7 @@ input:checked + .slider:before {
 /* Atrophy Tracker Badges */
 .badge-recovering { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
 .badge-ready { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
-.badge-detraining { background: rgba(255, 94, 0, 0.15); color: #ff8a4c; border: 1px solid rgba(255, 94, 0, 0.3); }
+.badge-detraining { background: rgba(24, 119, 242, 0.15); color: #ff8a4c; border: 1px solid rgba(24, 119, 242, 0.3); }
 .badge-atrophy { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
 
 .atrophy-item {
@@ -1759,7 +1759,7 @@ input:checked + .slider:before {
   background: rgba(30, 30, 30, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   color: var(--color-text-primary);
   padding: 16px 20px;
