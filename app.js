@@ -1236,18 +1236,54 @@ const APEX_APP = {
 
   updateAnalyticsMLInsightsUI() {
     const lockedView = document.getElementById("insights-locked-view");
+    const diagnosticView = document.getElementById("insights-diagnostic-view");
     const unlockedView = document.getElementById("insights-unlocked-view");
     if (!lockedView || !unlockedView) return;
 
-    const activeKey = this.state.aiProvider === "gemini" ? this.state.geminiApiKey : this.state.openaiApiKey;
+    let activeKey = this.state.aiProvider === "gemini" ? this.state.geminiApiKey : this.state.openaiApiKey;
+    // Fallback: If current provider key is empty, check if ANY key is available
+    if (!activeKey || activeKey.trim() === "") {
+        if (this.state.geminiApiKey && this.state.geminiApiKey.trim() !== "") activeKey = this.state.geminiApiKey;
+        else if (this.state.openaiApiKey && this.state.openaiApiKey.trim() !== "") activeKey = this.state.openaiApiKey;
+    }
+
     if (activeKey && activeKey.trim() !== "") {
+      const pastLogsCount = this.state.loggedWorkouts.filter(l => !l.isPlanned).length;
+      const threshold = 10;
+      
       lockedView.classList.add("hidden");
       lockedView.style.display = "none";
-      unlockedView.classList.remove("hidden");
-      unlockedView.style.display = "block";
+      
+      if (pastLogsCount < threshold) {
+        // Show Diagnostic View
+        if (diagnosticView) {
+            diagnosticView.classList.remove("hidden");
+            diagnosticView.style.display = "block";
+            
+            document.getElementById("insights-diagnostic-count").innerText = pastLogsCount;
+            document.getElementById("insights-diagnostic-remaining").innerText = threshold - pastLogsCount;
+            document.getElementById("insights-diagnostic-progress").style.width = `${(pastLogsCount / threshold) * 100}%`;
+        }
+        
+        unlockedView.classList.add("hidden");
+        unlockedView.style.display = "none";
+      } else {
+        // Show Unlocked View
+        if (diagnosticView) {
+            diagnosticView.classList.add("hidden");
+            diagnosticView.style.display = "none";
+        }
+        unlockedView.classList.remove("hidden");
+        unlockedView.style.display = "block";
+      }
     } else {
+      // Locked View
       lockedView.classList.remove("hidden");
       lockedView.style.display = "block";
+      if (diagnosticView) {
+          diagnosticView.classList.add("hidden");
+          diagnosticView.style.display = "none";
+      }
       unlockedView.classList.add("hidden");
       unlockedView.style.display = "none";
     }

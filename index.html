@@ -396,7 +396,6 @@
           <span class="badge badge-accent">Beta</span>
         </div>
         
-        <!-- Locked View -->
         <div id="insights-locked-view" class="card-body" style="text-align: center; padding: 30px 20px;">
           <div style="font-size: 3rem; margin-bottom: 15px; opacity: 0.5;">🔒</div>
           <h4 style="margin-bottom: 10px;">API Key Required</h4>
@@ -404,6 +403,18 @@
             Unlock personalized data science insights analyzing your fatigue, hypertrophy trends, and readiness. Please provide your Google Gemini or OpenAI API Key in Settings to enable this feature.
           </p>
           <button id="btn-insights-go-settings" class="btn btn-secondary">Go to Settings</button>
+        </div>
+
+        <!-- Diagnostic View -->
+        <div id="insights-diagnostic-view" class="card-body hidden" style="display: none; text-align: center; padding: 30px 20px;">
+          <div style="font-size: 3rem; margin-bottom: 15px;">⏳</div>
+          <h4 style="margin-bottom: 10px;">Diagnostic Period Active</h4>
+          <p class="text-secondary" style="max-width: 400px; margin: 0 auto 20px;">
+            The model needs more data to calculate reliable predictions. You have logged <strong id="insights-diagnostic-count">0</strong> workouts. You need <strong id="insights-diagnostic-remaining">10</strong> more to unlock full ML Insights.
+          </p>
+          <div class="progress-bar-container" style="max-width: 300px; margin: 0 auto; height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden;">
+            <div id="insights-diagnostic-progress" class="progress-fill" style="width: 0%; height: 100%; background: var(--color-accent); transition: width 0.3s ease;"></div>
+          </div>
         </div>
 
         <!-- Unlocked View -->
