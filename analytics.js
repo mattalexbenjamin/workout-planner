@@ -405,6 +405,61 @@ const APEX_ANALYTICS = {
           }
         }
       }
+      }
     });
+  },
+
+  summarizeHistoryForInsights(logs, currentDateStr) {
+    const today = new Date(currentDateStr + 'T00:00:00');
+    
+    // Filter out planned future workouts
+    const pastLogs = logs.filter(l => !l.isPlanned && new Date(l.date + 'T00:00:00') <= today);
+    
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(today.getDate() - 7);
+
+    const last30 = pastLogs.filter(l => new Date(l.date + 'T00:00:00') >= thirtyDaysAgo);
+    const last7 = pastLogs.filter(l => new Date(l.date + 'T00:00:00') >= sevenDaysAgo);
+
+    const calcVolume = (logsArray) => {
+      let duration = 0;
+      let count = 0;
+      let avgIntensity = 0;
+      logsArray.forEach(l => {
+        duration += (l.duration || 0);
+        avgIntensity += (l.intensity || 5);
+        count++;
+      });
+      return { 
+        duration, 
+        count, 
+        avgIntensity: count > 0 ? (avgIntensity / count).toFixed(1) : 0 
+      };
+    };
+
+    const volume30 = calcVolume(last30);
+    const volume7 = calcVolume(last7);
+
+    // Get latest soreness
+    let latestSoreness = { legs: 1, shoulders: 1, core: 1, fatigue: 1 };
+    if (last7.length > 0) {
+      // Find the most recent log with soreness data
+      const sorted7 = [...last7].sort((a,b) => new Date(b.date) - new Date(a.date));
+      const recentLog = sorted7.find(l => l.soreness);
+      if (recentLog) {
+        latestSoreness = recentLog.soreness;
+      }
+    }
+
+    return JSON.stringify({
+      last30Days: volume30,
+      last7Days: volume7,
+      latestSoreness,
+      totalLogsConsidered: pastLogs.length,
+      currentDate: currentDateStr
+    }, null, 2);
   }
 };

@@ -387,6 +387,42 @@
         </div>
       </div>
 
+      <!-- ML Insights Feature -->
+      <div id="ml-insights-card" class="dashboard-card analytics-card highlight-card-ai" style="margin-bottom: 20px;">
+        <div class="card-header">
+          <h3 style="display: flex; align-items: center; gap: 8px;">
+            <span>✨</span> Deep Athletic Insights
+          </h3>
+          <span class="badge badge-accent">Beta</span>
+        </div>
+        
+        <!-- Locked View -->
+        <div id="insights-locked-view" class="card-body" style="text-align: center; padding: 30px 20px;">
+          <div style="font-size: 3rem; margin-bottom: 15px; opacity: 0.5;">🔒</div>
+          <h4 style="margin-bottom: 10px;">API Key Required</h4>
+          <p class="text-secondary" style="max-width: 400px; margin: 0 auto 20px;">
+            Unlock personalized data science insights analyzing your fatigue, hypertrophy trends, and readiness. Please provide your Google Gemini or OpenAI API Key in Settings to enable this feature.
+          </p>
+          <button id="btn-insights-go-settings" class="btn btn-secondary">Go to Settings</button>
+        </div>
+
+        <!-- Unlocked View -->
+        <div id="insights-unlocked-view" class="card-body hidden" style="display: none;">
+          <p class="text-secondary" style="margin-bottom: 15px;">
+            Generate an AI-driven analysis of your recent training volume, sweet spots, and readiness score based on your historical data.
+          </p>
+          <button id="btn-generate-insights" class="btn btn-accent btn-full" style="margin-bottom: 15px;">✨ Generate Deep Insights</button>
+          
+          <div id="insights-loading-spinner" class="ai-loading-container hidden">
+            <div class="spinner-circle"></div>
+            <span id="insights-loading-status">Analyzing historical data...</span>
+          </div>
+
+          <div id="insights-result-container" class="workout-details-box hidden" style="white-space: pre-line; line-height: 1.6; font-size: 0.95rem;">
+          </div>
+        </div>
+      </div>
+
       <div class="analytics-grid">
         <!-- Left: SVG Muscle Heat Map (Front & Back) -->
         <div class="dashboard-card analytics-card">

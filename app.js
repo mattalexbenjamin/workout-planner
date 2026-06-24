@@ -1017,6 +1017,57 @@ const APEX_APP = {
     };
     updateSliderLabels("workout");
     updateSliderLabels("sport");
+
+    // ML Insights Feature Events
+    const btnGoSettings = document.getElementById("btn-insights-go-settings");
+    if (btnGoSettings) {
+      btnGoSettings.addEventListener("click", () => {
+        this.state.activeTab = "tab-settings";
+        this.updateActiveTabUI();
+        this.render();
+      });
+    }
+
+    const btnGenerateInsights = document.getElementById("btn-generate-insights");
+    if (btnGenerateInsights) {
+      btnGenerateInsights.addEventListener("click", () => {
+        const activeKey = this.state.aiProvider === "gemini" ? this.state.geminiApiKey : this.state.openaiApiKey;
+        if (!activeKey) {
+          alert("API Key is missing. Please configure it in settings.");
+          return;
+        }
+
+        const spinner = document.getElementById("insights-loading-spinner");
+        const resultContainer = document.getElementById("insights-result-container");
+        
+        btnGenerateInsights.classList.add("hidden");
+        spinner.classList.remove("hidden");
+        resultContainer.classList.add("hidden");
+
+        const historicalDataSummary = APEX_ANALYTICS.summarizeHistoryForInsights(
+          this.state.loggedWorkouts, 
+          this.state.currentDateStr
+        );
+
+        APEX_AI.generateInsights(
+          this.state.aiProvider,
+          activeKey,
+          historicalDataSummary,
+          (insightsText) => {
+            spinner.classList.add("hidden");
+            btnGenerateInsights.classList.remove("hidden");
+            btnGenerateInsights.innerText = "✨ Regenerate Insights";
+            resultContainer.innerHTML = insightsText;
+            resultContainer.classList.remove("hidden");
+          },
+          (error) => {
+            spinner.classList.add("hidden");
+            btnGenerateInsights.classList.remove("hidden");
+            alert("Failed to generate insights: " + error);
+          }
+        );
+      });
+    }
   },
 
   // Modal Open Logic
@@ -1179,6 +1230,26 @@ const APEX_APP = {
     this.renderHistoryTab();
     if (this.state.activeTab === "tab-analytics" && typeof APEX_ANALYTICS !== "undefined") {
       APEX_ANALYTICS.updateCharts(this.state.loggedWorkouts, this.state.analyticsRangeDays, this.state.currentDateStr);
+      this.updateAnalyticsMLInsightsUI();
+    }
+  },
+
+  updateAnalyticsMLInsightsUI() {
+    const lockedView = document.getElementById("insights-locked-view");
+    const unlockedView = document.getElementById("insights-unlocked-view");
+    if (!lockedView || !unlockedView) return;
+
+    const activeKey = this.state.aiProvider === "gemini" ? this.state.geminiApiKey : this.state.openaiApiKey;
+    if (activeKey && activeKey.trim() !== "") {
+      lockedView.classList.add("hidden");
+      lockedView.style.display = "none";
+      unlockedView.classList.remove("hidden");
+      unlockedView.style.display = "block";
+    } else {
+      lockedView.classList.remove("hidden");
+      lockedView.style.display = "block";
+      unlockedView.classList.add("hidden");
+      unlockedView.style.display = "none";
     }
   },
 

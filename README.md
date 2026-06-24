@@ -9,6 +9,7 @@ APEX is a zero-dependency, client-side application that integrates with your per
 ## ⚡ Key Features
 
 * **🤖 Gemini AI Coach**: Generates fully custom, on-the-fly workouts using Google's Gemini AI directly in your browser. Adapts sets, reps, and exercise selection to your exact equipment, schedule, and fatigue levels.
+* **✨ Deep Athletic Insights**: An ML-driven feature that analyzes your historical data (volume trends, hypertrophy sweet spots, and readiness scores) to provide personalized, natural language insights about your athletic journey.
 * **🏋️‍♂️ 20 Elite Curated Workouts**: A comprehensive built-in catalog of expertly programmed workouts divided evenly across Weightlifting, Running, Volleyball, Flag Football, and Recovery.
 * **📅 Smart Calendar Recommendations**: Integrates in real-time with your Google Calendar. It adapts your schedule automatically (e.g. recommending dynamic joint prehab on game days, avoiding leg-heavy plyometrics the day before match play, or suggesting express conditioning on busy workdays).
 * **☁️ Google Drive Cloud Sync**: Uses your personal Google sign-in to securely store and sync your workouts in a hidden file (`apex_workout_data.json`) on your Google Drive. Allows seamless backup and sync across your computer and iPhone.

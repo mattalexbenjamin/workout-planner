@@ -341,5 +341,75 @@ Provide output strictly matching the JSON schema.`;
     } else {
       onError("Invalid AI Provider specified.");
     }
+  },
+
+  // Generate ML Insights
+  generateInsights(provider, apiKey, contextString, onSuccess, onError) {
+    if (!apiKey) {
+      onError("API Key is missing.");
+      return;
+    }
+
+    const systemPrompt = `You are APEX AI, an elite sports data scientist and strength coach. 
+Analyze the provided athletic historical data (volume trends, soreness, and frequency).
+Write a 3-4 paragraph natural language summary for the user. Focus on:
+1. Comparing their last 7 days of volume to their 30-day baseline.
+2. Identifying their hypertrophy "sweet spot" (what volume/intensity yielded the best soreness/recovery balance).
+3. Prescribing a readiness recommendation for today based on their latest fatigue and soreness.
+Format the output beautifully in Markdown (use bolding and lists if helpful). Do not use code blocks. Keep it encouraging but deeply analytical.`;
+
+    const userPrompt = `Here is my historical data summary:\n\n${contextString}`;
+
+    if (provider === 'gemini') {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+      const payload = {
+        contents: [{ parts: [{ text: systemPrompt + "\n\n" + userPrompt }] }]
+      };
+
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) throw new Error(data.error.message);
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) throw new Error("Empty response from Gemini.");
+        const htmlText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        onSuccess(htmlText);
+      })
+      .catch(err => onError(err.message));
+
+    } else if (provider === 'openai') {
+      const url = "https://api.openai.com/v1/chat/completions";
+      const payload = {
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      };
+
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) throw new Error(data.error.message);
+        const text = data.choices?.[0]?.message?.content;
+        if (!text) throw new Error("Empty response from ChatGPT.");
+        const htmlText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        onSuccess(htmlText);
+      })
+      .catch(err => onError(err.message));
+    } else {
+      onError("Invalid AI Provider specified.");
+    }
   }
 };
