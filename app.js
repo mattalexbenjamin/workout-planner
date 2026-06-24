@@ -4,7 +4,7 @@ const APEX_APP = {
   // Global State
   state: {
     activeTab: "tab-today",
-    currentDateStr: "2026-06-21", // Start date of our tracking summer campaign
+    currentDateStr: new Date().toLocaleDateString('en-CA'), // Dynamically set to today (YYYY-MM-DD local time)
     currentWeekOffset: 0,        // Weekly schedule offset
     goals: {
       startWeight: 195,
@@ -1136,8 +1136,8 @@ const APEX_APP = {
 
   // Date utilities
   getWeekStartAndEndDates(offsetWeeks) {
-    // Current date is 2026-06-21
-    const baseDate = new Date("2026-06-21T00:00:00");
+    const baseDate = new Date();
+    baseDate.setHours(0,0,0,0);
     baseDate.setDate(baseDate.getDate() + (offsetWeeks * 7));
     
     // Find Monday of that week (2026-06-21 is a Sunday, so we find Monday June 15 or similar)
