@@ -176,6 +176,36 @@ const APEX_APP = {
     localStorage.setItem("apex_logs", JSON.stringify(this.state.loggedWorkouts));
   },
 
+  // Toast Notifications
+  showToast(message, type = 'info') {
+    const container = document.getElementById("toast-container");
+    if (!container) return;
+
+    const toast = document.createElement("div");
+    toast.className = `toast toast-${type}`;
+    
+    const iconSpan = document.createElement("span");
+    iconSpan.style.marginRight = "8px";
+    if (type === "success") iconSpan.innerText = "✅";
+    else if (type === "error") iconSpan.innerText = "⚠️";
+    else iconSpan.innerText = "ℹ️";
+
+    const textSpan = document.createElement("span");
+    textSpan.innerText = message;
+
+    toast.appendChild(iconSpan);
+    toast.appendChild(textSpan);
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+      toast.classList.add("toast-exiting");
+      toast.addEventListener("animationend", () => {
+        toast.remove();
+      });
+    }, 3000);
+  },
+
   // Google Calendar Syncing
   syncCalendarData() {
     this.state.syncing = true;
@@ -203,6 +233,12 @@ const APEX_APP = {
         const start = new Date(fetchStartStr + 'T00:00:00');
         const end = new Date(fetchEndStr + 'T23:59:59');
         
+        // Extract the old events in this range to compare
+        const oldEventsInRange = this.state.calendarEvents.filter(e => {
+          const eDate = new Date(e.date + 'T00:00:00');
+          return eDate >= start && eDate <= end;
+        });
+
         this.state.calendarEvents = this.state.calendarEvents.filter(e => {
           const eDate = new Date(e.date + 'T00:00:00');
           return eDate < start || eDate > end;
@@ -217,11 +253,23 @@ const APEX_APP = {
         this.state.syncing = false;
         this.updateGcalStatusUI();
         this.render();
+
+        // Compare old vs new to trigger toast
+        const sortByDateTitle = (a, b) => (a.date + a.title).localeCompare(b.date + b.title);
+        const oldStr = JSON.stringify([...oldEventsInRange].sort(sortByDateTitle));
+        const newStr = JSON.stringify([...events].sort(sortByDateTitle));
+        
+        if (oldStr === newStr) {
+          this.showToast("Calendar is already up to date.", "info");
+        } else {
+          this.showToast("Calendar refreshed! New events synced.", "success");
+        }
       },
       (errorMsg) => {
         console.warn("GCal load issue:", errorMsg);
         this.state.syncing = false;
         this.updateGcalStatusUI();
+        this.showToast("Failed to sync calendar.", "error");
         // Fallback: If mock mode is enabled, it should load. If not, we just alert
         if (!APEX_GCAL.isMockEnabled) {
           // don't interrupt user unless they click manually
