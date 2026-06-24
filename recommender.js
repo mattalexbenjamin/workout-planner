@@ -150,9 +150,9 @@ const APEX_RECOMMENDER = {
       result.fatigue = Math.min(5.0, 1.0 + (totalVolume / 100) * im.fatigue * globalScale);
 
       // Preserves legacy fallback for missing explicit exercises
-      if (log.id === 'sand_plyos') { result.legs = Math.max(result.legs, 3.5); result.fatigue = Math.max(result.fatigue, 3.0); }
-      if (log.id === 'athletic_strength_a') { result.legs = Math.max(result.legs, 3.0); result.chest = Math.max(result.chest, 2.5); }
-      if (log.id === 'athletic_strength_b') { result.legs = Math.max(result.legs, 3.5); result.back = Math.max(result.back, 3.0); }
+      if (log.id === 'volleyball_1') { result.legs = Math.max(result.legs, 3.5); result.fatigue = Math.max(result.fatigue, 3.0); }
+      if (log.id === 'weightlifting_2') { result.legs = Math.max(result.legs, 3.0); result.chest = Math.max(result.chest, 2.5); }
+      if (log.id === 'weightlifting_4') { result.legs = Math.max(result.legs, 3.5); result.back = Math.max(result.back, 3.0); }
       
     } else {
       // Sports / Cardio
@@ -217,9 +217,9 @@ const APEX_RECOMMENDER = {
     const didWorkoutToday = loggedWorkouts.some(w => w.date === todayStr);
 
     // Categorized history
-    const historyLifting = historyLast10Days.filter(w => w.type === 'lifting' || w.id?.includes('strength'));
-    const historyPlyos = historyLast10Days.filter(w => w.id === 'sand_plyos');
-    const historyAgility = historyLast10Days.filter(w => w.id === 'saq_agility');
+    const historyLifting = historyLast10Days.filter(w => w.type === 'lifting' || w.id?.includes('weightlifting'));
+    const historyPlyos = historyLast10Days.filter(w => w.id === 'volleyball_1');
+    const historyAgility = historyLast10Days.filter(w => w.id === 'football_2');
     const historySports = loggedWorkouts.filter(w => (w.type === 'volleyball' || w.type === 'football' || w.type === 'running' || w.type === 'basketball' || w.type === 'hiking' || w.type === 'surfing' || w.type === 'tennis') && w.date === yesterdayStr);
 
     // 3. Rule Engine Execution
@@ -227,8 +227,8 @@ const APEX_RECOMMENDER = {
     // Rule 0: If they already completed a workout TODAY
     if (didWorkoutToday) {
       return {
-        workoutId: "active_mobility",
-        name: "Full Body Mobility Flow",
+        workoutId: "recovery_1",
+        name: "Recovery - Active Recovery & Joint Mobility",
         reason: "You already crushed a session today! Keep the momentum going with a light mobility flow to speed up recovery.",
         impactEvents: []
       };
@@ -237,8 +237,8 @@ const APEX_RECOMMENDER = {
     // NEW Rule Fatigue: Overall Fatigue is High (>= 4.0)
     if (soreness.fatigue >= 4.0) {
       return {
-        workoutId: "active_mobility",
-        name: "Full Body Mobility Flow",
+        workoutId: "recovery_2",
+        name: "Recovery - Yoga-Inspired Flow (Hips & Spine)",
         reason: `Your overall fatigue is high (${soreness.fatigue.toFixed(1)}/5). Rather than pushing through exhaustion, we suggest this mobility flow to recover your nervous system and muscles.`,
         impactEvents: []
       };
@@ -248,9 +248,9 @@ const APEX_RECOMMENDER = {
     if (hasSportToday) {
       const sportEvent = todayEvents.find(e => keywordsSport.some(kw => e.title.toLowerCase().includes(kw)));
       return {
-        workoutId: "shoulder_knee_prehab",
-        name: "Volleyball Shoulder & Knee Armor",
-        reason: `You have a sport activity today (${sportEvent.title}). To protect your joints and prevent injury, we recommend this prehab activation rather than heavy training.`,
+        workoutId: "recovery_4",
+        name: "Recovery - Upper Body & Shoulder Release",
+        reason: `You have a sport activity today (${sportEvent.title}). To protect your joints and prevent injury, we recommend this prehab and release activation rather than heavy training.`,
         impactEvents: [sportEvent]
       };
     }
@@ -259,8 +259,8 @@ const APEX_RECOMMENDER = {
     if (hasSportTomorrow) {
       const sportEventTomorrow = tomorrowEvents.find(e => keywordsSport.some(kw => e.title.toLowerCase().includes(kw)));
       return {
-        workoutId: "shoulder_knee_prehab",
-        name: "Volleyball Shoulder & Knee Armor",
+        workoutId: "volleyball_3",
+        name: "Volleyball - Upper Body Power & Shoulder Prehab",
         reason: `You have a game/play scheduled tomorrow (${sportEventTomorrow.title}). We're skipping heavy leg work and jumps today to keep your muscles fresh, explosive, and fatigue-free for tomorrow.`,
         impactEvents: [sportEventTomorrow]
       };
@@ -270,9 +270,9 @@ const APEX_RECOMMENDER = {
     if (todayBusyHours >= 5) {
       const busyEvents = todayEvents.filter(e => keywordsBusy.some(kw => e.title.toLowerCase().includes(kw)));
       return {
-        workoutId: "express_circuit",
-        name: "Express 15-Min Explosive Circuit",
-        reason: `Your calendar is packed with ${todayBusyHours.toFixed(1)} hours of busy events today. Here is an express workout to keep your metabolic rate up in just 15 minutes.`,
+        workoutId: "running_2",
+        name: "Running - HIIT Track Intervals",
+        reason: `Your calendar is packed with ${todayBusyHours.toFixed(1)} hours of busy events today. Here is a relatively quick HIIT running workout to keep your metabolic rate up and save time.`,
         impactEvents: busyEvents
       };
     }
@@ -281,15 +281,15 @@ const APEX_RECOMMENDER = {
     if (soreness.legs >= 3.0) {
       if (soreness.shoulders < 3.0) {
         return {
-          workoutId: "shoulder_knee_prehab",
-          name: "Volleyball Shoulder & Knee Armor",
-          reason: `Your legs are sore (${soreness.legs.toFixed(1)}/5). We're avoiding jumps, sprint starts, and heavy squats today. Let's redirect work to upper body prehab and rotator cuff stability.`,
+          workoutId: "weightlifting_1",
+          name: "Weightlifting - Upper Body Hypertrophy",
+          reason: `Your legs are sore (${soreness.legs.toFixed(1)}/5). We're avoiding jumps, sprint starts, and heavy squats today. Let's redirect work to upper body hypertrophy.`,
           impactEvents: []
         };
       } else {
         return {
-          workoutId: "active_mobility",
-          name: "Full Body Mobility Flow",
+          workoutId: "recovery_3",
+          name: "Recovery - Lower Body Focused Deep Stretching",
           reason: `Both your legs (${soreness.legs.toFixed(1)}/5) and shoulders (${soreness.shoulders.toFixed(1)}/5) are sore today. We suggest focusing purely on full body mobility and stretching.`,
           impactEvents: []
         };
@@ -300,15 +300,15 @@ const APEX_RECOMMENDER = {
     if (soreness.shoulders >= 3.0) {
       if (soreness.legs < 3.0) {
         return {
-          workoutId: "saq_agility",
-          name: "Football Speed & Agility",
+          workoutId: "football_2",
+          name: "Flag Football - Change of Direction",
           reason: `Your shoulders are sore (${soreness.shoulders.toFixed(1)}/5). We're bypassing overhead pushes and heavy lifts today. Let's do speed and agility drills on turf to keep your conditioning high.`,
           impactEvents: []
         };
       } else {
         return {
-          workoutId: "active_mobility",
-          name: "Full Body Mobility Flow",
+          workoutId: "recovery_1",
+          name: "Recovery - Active Recovery & Joint Mobility",
           reason: `Both shoulders (${soreness.shoulders.toFixed(1)}/5) and legs (${soreness.legs.toFixed(1)}/5) are sore today. Opting for active mobility flow to dump lactic acid and recover.`,
           impactEvents: []
         };
@@ -318,8 +318,8 @@ const APEX_RECOMMENDER = {
     // Rule 4: Muscle Soreness from Heavy Sport Yesterday
     if (historySports.length > 0) {
       return {
-        workoutId: "active_mobility",
-        name: "Full Body Mobility Flow",
+        workoutId: "recovery_1",
+        name: "Recovery - Active Recovery & Joint Mobility",
         reason: `You had a demanding sport session yesterday (${historySports[0].type.toUpperCase()}). Today we focus on flushing out lactic acid and restoring flexibility.`,
         impactEvents: []
       };
@@ -345,16 +345,16 @@ const APEX_RECOMMENDER = {
     // Check which workout was done least recently
     // If lifting is behind weekly frequency schedule, prioritize lifting
     if (liftCount7Days < weeklyTarget && liftingCount <= plyosCount && liftingCount <= agilityCount) {
-      // Alternate between A and B
+      // Alternate between Upper and Lower Body
       const lastLiftingSession = loggedWorkouts
-        .filter(w => w.id === 'athletic_strength_a' || w.id === 'athletic_strength_b')
+        .filter(w => w.id === 'weightlifting_1' || w.id === 'weightlifting_2')
         .sort((a,b) => new Date(b.date) - new Date(a.date))[0];
       
-      const nextLiftId = (!lastLiftingSession || lastLiftingSession.id === 'athletic_strength_b') 
-        ? 'athletic_strength_a' 
-        : 'athletic_strength_b';
+      const nextLiftId = (!lastLiftingSession || lastLiftingSession.id === 'weightlifting_2') 
+        ? 'weightlifting_1' 
+        : 'weightlifting_2';
 
-      const nextLiftName = nextLiftId === 'athletic_strength_a' ? "Explosive Athletic Strength A" : "Athletic Shred & Power B";
+      const nextLiftName = nextLiftId === 'weightlifting_1' ? "Weightlifting - Upper Body Hypertrophy" : "Weightlifting - Lower Body Absolute Strength";
 
       return {
         workoutId: nextLiftId,
@@ -367,9 +367,9 @@ const APEX_RECOMMENDER = {
     // Prioritize Plyos if it has been done less than speed/lifting
     if (plyosCount <= agilityCount && plyosCount <= liftingCount) {
       return {
-        workoutId: "sand_plyos",
-        name: "Sand Plyos & Vertical Boost",
-        reason: "Your schedule is wide open. Let's hit the sand plyometrics to build vertical explosiveness and ankle power for volleyball.",
+        workoutId: "volleyball_1",
+        name: "Volleyball - Explosive Vertical Power",
+        reason: "Your schedule is wide open. Let's hit the plyometrics to build vertical explosiveness and power for volleyball.",
         impactEvents: []
       };
     }
@@ -377,22 +377,22 @@ const APEX_RECOMMENDER = {
     // Prioritize Speed/Agility next
     if (agilityCount <= plyosCount && agilityCount <= liftingCount) {
       return {
-        workoutId: "saq_agility",
-        name: "Football Speed & Agility",
+        workoutId: "football_2",
+        name: "Flag Football - Change of Direction",
         reason: "Let's focus on deceleration control, sprint starts, and change of direction agility on your open schedule today.",
         impactEvents: []
       };
     }
 
     // Fallback: If everything is balanced, recommend a strength session
-    const lastLiftingSession = loggedWorkouts
-      .filter(w => w.id === 'athletic_strength_a' || w.id === 'athletic_strength_b')
+    const lastLiftingSessionFallback = loggedWorkouts
+      .filter(w => w.id === 'weightlifting_1' || w.id === 'weightlifting_2')
       .sort((a,b) => new Date(b.date) - new Date(a.date))[0];
     
-    const fallbackId = (!lastLiftingSession || lastLiftingSession.id === 'athletic_strength_b') 
-      ? 'athletic_strength_a' 
-      : 'athletic_strength_b';
-    const fallbackName = fallbackId === 'athletic_strength_a' ? "Explosive Athletic Strength A" : "Athletic Shred & Power B";
+    const fallbackId = (!lastLiftingSessionFallback || lastLiftingSessionFallback.id === 'weightlifting_2') 
+      ? 'weightlifting_1' 
+      : 'weightlifting_2';
+    const fallbackName = fallbackId === 'weightlifting_1' ? "Weightlifting - Upper Body Hypertrophy" : "Weightlifting - Lower Body Absolute Strength";
 
     return {
       workoutId: fallbackId,
