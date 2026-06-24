@@ -1646,7 +1646,7 @@ const APEX_APP = {
             tennis: "🎾"
           };
           const typeIcon = sportIcons[log.type] || "📅";
-          const title = log.id ? ATHLETIC_WORKOUTS.find(w => w.id === log.id)?.name || log.id.toUpperCase().replace(/_/g, ' ') : 'Workout';
+          const title = log.id ? ATHLETIC_WORKOUTS.find(w => w.id === log.id)?.name || log.name || log.id.toUpperCase().replace(/_/g, ' ') : log.name || 'Workout';
           
           if (log.isPlanned) {
             contentHTML += `
@@ -1826,7 +1826,8 @@ const APEX_APP = {
 
       let exercisesHTML = "";
       if (log.exercises && log.exercises.length > 0) {
-        exercisesHTML = `<div class="history-item-notes" style="font-style:normal; margin-bottom: 4px;"><strong>Exercises:</strong> ${log.exercises.join(', ')}</div>`;
+        const exList = log.exercises.map(e => typeof e === 'string' ? e : `${e.name} (${e.sets}x${e.reps})`).join(', ');
+        exercisesHTML = `<div class="history-item-notes" style="font-style:normal; margin-bottom: 4px;"><strong>Exercises:</strong> ${exList}</div>`;
       }
 
       const opt = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };

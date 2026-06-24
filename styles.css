@@ -412,11 +412,15 @@ body {
 
 /* Workout details box inside recommendation */
 .workout-details-box {
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-sm);
   padding: 14px;
   margin-top: 14px;
+}
+
+.workout-details-box .text-secondary {
+  color: #E5E7EB !important;
 }
 
 .workout-details-box h4 {
@@ -912,12 +916,12 @@ body {
 }
 
 .history-item-notes {
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  background-color: rgba(0,0,0,0.1);
-  padding: 6px 10px;
-  border-radius: 4px;
-  font-style: italic;
+  font-size: 0.8rem;
+  color: #E5E7EB;
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-style: normal;
 }
 
 .history-item-actions {
