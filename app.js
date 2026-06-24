@@ -1549,6 +1549,36 @@ const APEX_APP = {
       }
     }
 
+    // Calculate and update Readiness Score
+    const readinessText = document.getElementById("readiness-score-val");
+    if (readinessText) {
+      const avgSoreness = (
+        (currentSoreness.legs || 1.0) +
+        (currentSoreness.back || 1.0) +
+        (currentSoreness.chest || 1.0) +
+        (currentSoreness.shoulders || 1.0) +
+        (currentSoreness.arms || 1.0) +
+        (currentSoreness.core || 1.0)
+      ) / 6.0;
+
+      const totalStress = (0.5 * fatigueVal) + (0.5 * avgSoreness);
+      // Map 1.0 - 5.0 to 100% - 0%
+      let readinessPct = 100 - ((totalStress - 1) / 4) * 100;
+      readinessPct = Math.max(0, Math.min(100, readinessPct)); // Clamp between 0-100
+
+      readinessText.innerText = `${Math.round(readinessPct)}%`;
+      
+      readinessText.removeAttribute("class");
+      readinessText.className = "stat-value";
+      if (readinessPct >= 80) {
+        readinessText.style.color = "var(--color-success)";
+      } else if (readinessPct >= 50) {
+        readinessText.style.color = "var(--color-warning)";
+      } else {
+        readinessText.style.color = "var(--color-danger)";
+      }
+    }
+
     // Update Recovery Status badge
     const recoveryBadge = document.getElementById("recovery-status-badge");
     if (recoveryBadge) {
