@@ -1241,10 +1241,22 @@ const APEX_APP = {
     if (!lockedView || !unlockedView) return;
 
     let activeKey = this.state.aiProvider === "gemini" ? this.state.geminiApiKey : this.state.openaiApiKey;
-    // Fallback: If current provider key is empty, check if ANY key is available
+    
+    // Fallback 1: If current provider key is empty, check if ANY key is available in state
     if (!activeKey || activeKey.trim() === "") {
         if (this.state.geminiApiKey && this.state.geminiApiKey.trim() !== "") activeKey = this.state.geminiApiKey;
         else if (this.state.openaiApiKey && this.state.openaiApiKey.trim() !== "") activeKey = this.state.openaiApiKey;
+    }
+
+    // Fallback 2: Check if the user typed it into the settings inputs but forgot to click Save
+    if (!activeKey || activeKey.trim() === "") {
+        const geminiInput = document.getElementById("gemini-api-key");
+        const openaiInput = document.getElementById("openai-api-key");
+        if (geminiInput && geminiInput.value.trim() !== "") {
+            activeKey = geminiInput.value.trim();
+        } else if (openaiInput && openaiInput.value.trim() !== "") {
+            activeKey = openaiInput.value.trim();
+        }
     }
 
     if (activeKey && activeKey.trim() !== "") {
