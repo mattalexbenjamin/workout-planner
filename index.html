@@ -13,12 +13,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="APEX Summer">
   <link rel="apple-touch-icon" href="icons/apple-icon-180.png">
-  <meta name="theme-color" content="#ff5e00">
+  <meta name="theme-color" content="#1877F2">
 
-  <!-- Google Fonts: Outfit for sporty/modern aesthetic -->
+  <!-- Google Fonts: Inter for modern, sleek aesthetic -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- Google Identity Services Library for OAuth Login -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <!-- Chart.js for premium analytics visualizations -->
@@ -322,10 +322,10 @@
       <!-- Library Categories -->
       <div class="filter-pills">
         <button class="pill active" data-category="all">All</button>
-        <button class="pill" data-category="strength">Lifting</button>
-        <button class="pill" data-category="explosive">Sand Plyos</button>
-        <button class="pill" data-category="speed">SAQ Agility</button>
-        <button class="pill" data-category="prehab">Shoulder/Knee</button>
+        <button class="pill" data-category="weightlifting">Weightlifting</button>
+        <button class="pill" data-category="running">Running</button>
+        <button class="pill" data-category="volleyball">Volleyball</button>
+        <button class="pill" data-category="flag_football">Flag Football</button>
         <button class="pill" data-category="recovery">Recovery</button>
       </div>
 
@@ -398,7 +398,7 @@
               <h5 style="margin-bottom:5px; font-size:0.75rem;">FRONT</h5>
               <svg id="svg-body-heatmap-front" viewBox="0 0 200 400" width="100%" height="280">
                 <!-- Base Silhouette Front -->
-                <path class="body-base" d="M100 20 C112 20 120 28 120 40 C120 52 112 60 100 60 C88 60 80 52 80 40 C80 28 88 20 100 20 M100 60 L100 70 M60 90 C70 85 85 80 100 80 C115 80 130 85 140 90 L145 130 C148 140 145 150 142 160 L130 220 L135 270 L125 360 C123 370 120 380 115 380 C110 380 108 375 107 365 L102 270 L98 270 L93 365 C92 375 90 380 85 380 C80 380 77 370 75 360 L65 270 L70 220 L58 160 C55 150 52 140 55 130 Z" fill="#1e1e24" stroke="#2d2d38" stroke-width="2"/>
+                <path class="body-base" d="M100 20 C112 20 120 28 120 40 C120 52 112 60 100 60 C88 60 80 52 80 40 C80 28 88 20 100 20 M100 60 L100 70 M60 90 C70 85 85 80 100 80 C115 80 130 85 140 90 L145 130 C148 140 145 150 142 160 L130 220 L135 270 L125 360 C123 370 120 380 115 380 C110 380 108 375 107 365 L102 270 L98 270 L93 365 C92 375 90 380 85 380 C80 380 77 370 75 360 L65 270 L70 220 L58 160 C55 150 52 140 55 130 Z" fill="#E4E6EB" stroke="#BCC0C4" stroke-width="2"/>
                 
                 <!-- Shoulders (Front) -->
                 <g id="heatmap-shoulders-front" class="muscle-group">
@@ -432,7 +432,7 @@
               <h5 style="margin-bottom:5px; font-size:0.75rem;">BACK</h5>
               <svg id="svg-body-heatmap-back" viewBox="0 0 200 400" width="100%" height="280">
                 <!-- Base Silhouette Back -->
-                <path class="body-base" d="M100 20 C112 20 120 28 120 40 C120 52 112 60 100 60 C88 60 80 52 80 40 C80 28 88 20 100 20 M100 60 L100 70 M60 90 C70 85 85 80 100 80 C115 80 130 85 140 90 L145 130 C148 140 145 150 142 160 L130 220 L135 270 L125 360 C123 370 120 380 115 380 C110 380 108 375 107 365 L102 270 L98 270 L93 365 C92 375 90 380 85 380 C80 380 77 370 75 360 L65 270 L70 220 L58 160 C55 150 52 140 55 130 Z" fill="#1e1e24" stroke="#2d2d38" stroke-width="2"/>
+                <path class="body-base" d="M100 20 C112 20 120 28 120 40 C120 52 112 60 100 60 C88 60 80 52 80 40 C80 28 88 20 100 20 M100 60 L100 70 M60 90 C70 85 85 80 100 80 C115 80 130 85 140 90 L145 130 C148 140 145 150 142 160 L130 220 L135 270 L125 360 C123 370 120 380 115 380 C110 380 108 375 107 365 L102 270 L98 270 L93 365 C92 375 90 380 85 380 C80 380 77 370 75 360 L65 270 L70 220 L58 160 C55 150 52 140 55 130 Z" fill="#E4E6EB" stroke="#BCC0C4" stroke-width="2"/>
                 
                 <!-- Shoulders (Back) -->
                 <g id="heatmap-shoulders-back" class="muscle-group">

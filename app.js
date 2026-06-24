@@ -1728,7 +1728,7 @@ const APEX_APP = {
       const card = document.createElement("div");
       card.className = "library-card";
       
-      const typeBadge = w.category === 'strength' ? 'badge-accent' : w.category === 'explosive' ? 'badge-warning' : w.category === 'speed' ? 'badge-info' : 'badge-success';
+      const typeBadge = w.category === 'weightlifting' ? 'badge-accent' : w.category === 'running' ? 'badge-error' : w.category === 'volleyball' ? 'badge-warning' : w.category === 'flag_football' ? 'badge-info' : 'badge-success';
 
       let exercisesList = "";
       w.exercises.forEach(ex => {
