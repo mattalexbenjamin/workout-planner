@@ -258,7 +258,7 @@ Provide output strictly matching the JSON schema.`;
     };
 
     if (provider === 'gemini') {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
       const payload = {
         contents: [{ parts: [{ text: systemPrompt + "\n\n" + userPrompt }] }],
         generationConfig: {
