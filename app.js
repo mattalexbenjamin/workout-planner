@@ -34,6 +34,7 @@ const APEX_APP = {
   init() {
     this.loadStateFromStorage();
     this.setupEventListeners();
+    this.setupRerollListeners();
     this.syncCalendarData();
     this.updateActiveTabUI();
     this.updateDriveStatusUI();
@@ -50,6 +51,83 @@ const APEX_APP = {
     
     // Check for Strava OAuth Callback
     this.handleStravaCallback();
+  },
+
+  setupRerollListeners() {
+    const detailsBox = document.getElementById("recommendation-details");
+    if (!detailsBox) return;
+
+    detailsBox.addEventListener("click", (e) => {
+      const rerollBtn = e.target.closest(".btn-reroll");
+      if (rerollBtn) {
+        const li = rerollBtn.closest("li");
+        if (!li) return;
+        const exerciseName = li.getAttribute("data-exercise-name");
+        
+        const oldContent = li.innerHTML;
+        li.setAttribute("data-old-content", oldContent);
+
+        li.innerHTML = `
+          <div class="inline-reroll-container">
+            <strong style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;" title="${exerciseName}">Re-roll ${exerciseName}</strong>
+            <input type="text" class="form-input reroll-input" placeholder="Reason (e.g. no bands)..." autofocus>
+            <button class="btn btn-primary btn-generate-reroll">Generate</button>
+            <button class="btn btn-secondary btn-cancel-reroll">Cancel</button>
+            <div class="spinner-circle hidden reroll-spinner" style="width: 16px; height: 16px; border-width: 2px;"></div>
+          </div>
+        `;
+        return;
+      }
+
+      const cancelBtn = e.target.closest(".btn-cancel-reroll");
+      if (cancelBtn) {
+        const li = cancelBtn.closest("li");
+        if (!li) return;
+        li.innerHTML = li.getAttribute("data-old-content");
+        return;
+      }
+
+      const genBtn = e.target.closest(".btn-generate-reroll");
+      if (genBtn) {
+        const li = genBtn.closest("li");
+        if (!li) return;
+        
+        const input = li.querySelector(".reroll-input");
+        const reason = input.value.trim() || "Just provide an alternative exercise.";
+        const exerciseName = li.getAttribute("data-exercise-name");
+        const spinner = li.querySelector(".reroll-spinner");
+        
+        input.disabled = true;
+        genBtn.disabled = true;
+        const cancelBtnEl = li.querySelector(".btn-cancel-reroll");
+        if (cancelBtnEl) cancelBtnEl.disabled = true;
+        spinner.classList.remove("hidden");
+        
+        const activeKey = this.state.aiProvider === "gemini" ? this.state.geminiApiKey : this.state.openaiApiKey;
+        const provider = this.state.aiProvider || "gemini";
+        
+        if (!this.state.aiWorkout) return;
+        
+        APEX_AI.rerollExercise(
+          provider,
+          activeKey,
+          this.state.aiWorkout,
+          exerciseName,
+          reason,
+          (newEx) => {
+            const exIndex = this.state.aiWorkout.exercises.findIndex(ex => ex.name === exerciseName);
+            if (exIndex > -1) {
+              this.state.aiWorkout.exercises[exIndex] = newEx;
+            }
+            this.renderTodayTab();
+          },
+          (err) => {
+            alert("Failed to re-roll exercise: " + err);
+            li.innerHTML = li.getAttribute("data-old-content");
+          }
+        );
+      }
+    });
   },
 
   // Save/Load Local Storage
@@ -726,7 +804,7 @@ const APEX_APP = {
           detailsBox.classList.remove("hidden");
           let listHTML = `<ul>`;
           workout.exercises.forEach(ex => {
-            listHTML += `<li><strong>${ex.name}</strong> <a href="${getExerciseGuideUrl(ex.name)}" target="_blank" rel="noopener" class="exercise-video-link" title="Watch Form Guide">🎬 Guide</a>: ${ex.sets} sets x ${ex.reps} <br><span class="text-secondary" style="font-size:0.75rem">${ex.notes}</span></li>`;
+            listHTML += `<li data-exercise-name="${ex.name}"><strong>${ex.name}</strong> <a href="${getExerciseGuideUrl(ex.name)}" target="_blank" rel="noopener" class="exercise-video-link" title="Watch Form Guide">🎬 Guide</a> <button class="btn-reroll" title="Re-roll this exercise">🎲</button>: ${ex.sets} sets x ${ex.reps} <br><span class="text-secondary" style="font-size:0.75rem">${ex.notes}</span></li>`;
           });
           listHTML += '</ul>';
           detailsBox.innerHTML = listHTML;
@@ -1393,7 +1471,7 @@ const APEX_APP = {
       detailsBox.classList.remove("hidden");
       let listHTML = `<ul>`;
       workout.exercises.forEach(ex => {
-        listHTML += `<li><strong>${ex.name}</strong> <a href="${getExerciseGuideUrl(ex.name)}" target="_blank" rel="noopener" class="exercise-video-link" title="Watch Form Guide">🎬 Guide</a>: ${ex.sets} sets x ${ex.reps} <br><span class="text-secondary" style="font-size:0.75rem">${ex.notes}</span></li>`;
+        listHTML += `<li data-exercise-name="${ex.name}"><strong>${ex.name}</strong> <a href="${getExerciseGuideUrl(ex.name)}" target="_blank" rel="noopener" class="exercise-video-link" title="Watch Form Guide">🎬 Guide</a> <button class="btn-reroll" title="Re-roll this exercise">🎲</button>: ${ex.sets} sets x ${ex.reps} <br><span class="text-secondary" style="font-size:0.75rem">${ex.notes}</span></li>`;
       });
       listHTML += '</ul>';
       detailsBox.innerHTML = listHTML;

@@ -1814,3 +1814,40 @@ input:checked + .slider:before {
   0% { opacity: 1; transform: translateY(0); }
   100% { opacity: 0; transform: translateY(15px); }
 }
+
+/* Re-roll inline feature */
+.btn-reroll {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0 4px;
+  vertical-align: middle;
+  transition: color 0.2s, transform 0.2s;
+}
+
+.btn-reroll:hover {
+  color: var(--color-accent);
+  transform: rotate(15deg) scale(1.1);
+}
+
+.inline-reroll-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  margin-bottom: 4px;
+  width: 100%;
+}
+
+.inline-reroll-container .form-input {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+}
+
+.inline-reroll-container .btn {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}

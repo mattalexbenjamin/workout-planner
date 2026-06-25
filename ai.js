@@ -411,5 +411,128 @@ Format the output beautifully in Markdown (use bolding and lists if helpful). Do
     } else {
       onError("Invalid AI Provider specified.");
     }
+  },
+
+  // Re-roll a single exercise
+  rerollExercise(provider, apiKey, workout, exerciseToReplaceName, reason, onSuccess, onError) {
+    if (!apiKey) {
+      onError("Missing AI provider API Key. Configure it in Settings.");
+      return;
+    }
+
+    const systemPrompt = `You are an elite athletic performance coach. You are helping a user customize their workout. 
+You must replace a specific exercise in their current workout based on their feedback, and return ONLY a single JSON object representing the NEW exercise.
+Do not include markdown blocks or any other text. Return exactly a JSON object matching this schema:
+{
+  "name": "Exercise Name",
+  "sets": 3,
+  "reps": "10-12",
+  "notes": "Instructional notes"
+}`;
+
+    const userPrompt = `Current Workout context:
+Name: ${workout.name}
+Intention: ${workout.intention}
+Description: ${workout.description}
+
+Existing Exercises:
+${workout.exercises.map(e => `- ${e.name} (${e.sets}x${e.reps})`).join('\n')}
+
+I want to replace the exercise: "${exerciseToReplaceName}".
+Reason for replacing: "${reason}"
+
+Provide exactly one new exercise that replaces this one, fits the workout's intention, does not heavily duplicate the other exercises, and strictly addresses my reason.`;
+
+    const exerciseSchema = {
+      type: "OBJECT",
+      properties: {
+        name: { type: "STRING" },
+        sets: { type: "INTEGER" },
+        reps: { type: "STRING" },
+        notes: { type: "STRING" }
+      },
+      required: ["name", "sets", "reps", "notes"]
+    };
+
+    if (provider === 'gemini') {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const payload = {
+        contents: [{ parts: [{ text: systemPrompt + "\n\n" + userPrompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: exerciseSchema
+        }
+      };
+
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) throw new Error(data.error.message);
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) throw new Error("Empty response from Gemini.");
+        try {
+          const newEx = JSON.parse(text);
+          onSuccess(newEx);
+        } catch (e) {
+          throw new Error("Failed to parse Gemini JSON.");
+        }
+      })
+      .catch(err => onError(err.message));
+
+    } else if (provider === 'openai') {
+      const url = "https://api.openai.com/v1/chat/completions";
+      const payload = {
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "exercise_schema",
+            schema: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                sets: { type: "integer" },
+                reps: { type: "string" },
+                notes: { type: "string" }
+              },
+              required: ["name", "sets", "reps", "notes"],
+              additionalProperties: false
+            }
+          }
+        }
+      };
+
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) throw new Error(data.error.message);
+        const text = data.choices?.[0]?.message?.content;
+        if (!text) throw new Error("Empty response from ChatGPT.");
+        try {
+          const newEx = JSON.parse(text);
+          onSuccess(newEx);
+        } catch (e) {
+          throw new Error("Failed to parse ChatGPT JSON.");
+        }
+      })
+      .catch(err => onError(err.message));
+    } else {
+      onError("Invalid AI Provider specified.");
+    }
   }
 };
