@@ -8,8 +8,10 @@ APEX is a zero-dependency, client-side application that integrates with your per
 
 ## ⚡ Key Features
 
-* **🤖 Gemini AI Coach**: Generates fully custom, on-the-fly workouts using Google's Gemini AI directly in your browser. Adapts sets, reps, and exercise selection to your exact equipment, schedule, and fatigue levels.
+* **🤖 Gemini AI Coach**: Generates fully custom, on-the-fly workouts using Google's Gemini AI directly in your browser. Features individual exercise "re-rolling" to instantly swap out movements. Adapts sets, reps, and exercise selection to your exact equipment, schedule, and fatigue levels.
 * **✨ Deep Athletic Insights**: An ML-driven feature that analyzes your historical data (volume trends, hypertrophy sweet spots, and readiness scores) to provide personalized, natural language insights about your athletic journey.
+* **🏆 Gamification Trophy Room**: A dynamic achievements engine that tracks consistency and sports-specific volume, unlocking beautifully designed metallic badges (Bronze through Diamond) as you hit major milestones.
+* **📊 Advanced Lifting Analytics**: Interactive Chart.js visualizations that track Volume Load (Sets x Reps x Weight) over time for your top exercises and analyze your training zones with Rep Range Distribution charts (Heavy, Hypertrophy, Endurance).
 * **🏋️‍♂️ 20 Elite Curated Workouts**: A comprehensive built-in catalog of expertly programmed workouts divided evenly across Weightlifting, Running, Volleyball, Flag Football, and Recovery.
 * **📅 Smart Calendar Recommendations**: Integrates in real-time with your Google Calendar. It adapts your schedule automatically (e.g. recommending dynamic joint prehab on game days, avoiding leg-heavy plyometrics the day before match play, or suggesting express conditioning on busy workdays).
 * **☁️ Google Drive Cloud Sync**: Uses your personal Google sign-in to securely store and sync your workouts in a hidden file (`apex_workout_data.json`) on your Google Drive. Allows seamless backup and sync across your computer and iPhone.
