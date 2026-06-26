@@ -414,7 +414,6 @@ const APEX_ANALYTICS = {
         }
       }
     });
-    });
   },
 
   renderRepRangeChart(logs) {
