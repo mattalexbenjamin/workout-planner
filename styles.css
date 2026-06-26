@@ -1851,3 +1851,110 @@ input:checked + .slider:before {
   padding: 6px 12px;
   font-size: 0.85rem;
 }
+
+/* Trophy Room */
+.trophy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+  padding-bottom: 80px;
+}
+
+.trophy-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  padding: 16px;
+  text-align: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  opacity: 0.5; /* locked state */
+}
+
+.trophy-card.unlocked {
+  opacity: 1;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.trophy-card.unlocked:hover {
+  transform: translateY(-4px);
+}
+
+.trophy-icon {
+  font-size: 2.5rem;
+  margin-bottom: 12px;
+  display: inline-block;
+  padding: 12px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  border: 2px solid transparent;
+}
+
+/* Metallic Badge Tiers */
+.badge-locked .trophy-icon {
+  filter: grayscale(100%);
+}
+.badge-bronze .trophy-icon {
+  background: linear-gradient(135deg, #cd7f32 0%, #a0522d 100%);
+  border-color: #cd7f32;
+  box-shadow: 0 0 10px rgba(205, 127, 50, 0.4);
+}
+.badge-silver .trophy-icon {
+  background: linear-gradient(135deg, #e0e0e0 0%, #9e9e9e 100%);
+  border-color: #e0e0e0;
+  box-shadow: 0 0 10px rgba(224, 224, 224, 0.4);
+}
+.badge-gold .trophy-icon {
+  background: linear-gradient(135deg, #ffdf00 0%, #d4af37 100%);
+  border-color: #ffdf00;
+  box-shadow: 0 0 15px rgba(255, 223, 0, 0.6);
+}
+.badge-platinum .trophy-icon {
+  background: linear-gradient(135deg, #e5e4e2 0%, #b0c4de 100%);
+  border-color: #e5e4e2;
+  box-shadow: 0 0 20px rgba(229, 228, 226, 0.8);
+}
+.badge-diamond .trophy-icon {
+  background: linear-gradient(135deg, #b9f2ff 0%, #ffffff 50%, #4da6ff 100%);
+  border-color: #b9f2ff;
+  box-shadow: 0 0 25px rgba(185, 242, 255, 0.9);
+  animation: diamondPulse 2s infinite alternate;
+}
+
+@keyframes diamondPulse {
+  0% { box-shadow: 0 0 15px rgba(185, 242, 255, 0.5); }
+  100% { box-shadow: 0 0 30px rgba(185, 242, 255, 1); }
+}
+
+.trophy-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: 4px;
+}
+
+.trophy-desc {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 12px;
+}
+
+.trophy-progress-container {
+  width: 100%;
+  height: 6px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.trophy-progress-fill {
+  height: 100%;
+  background: var(--color-accent);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.trophy-progress-text {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}

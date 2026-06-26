@@ -531,7 +531,18 @@
       </div>
     </section>
 
-    <!-- TAB 6: SETTINGS -->
+    <!-- TAB 6: TROPHY ROOM -->
+    <section id="tab-trophies" class="tab-pane">
+      <div class="section-header">
+        <h2>Trophy Room</h2>
+        <p class="text-secondary">Track your milestones and achievements.</p>
+      </div>
+      <div id="trophy-grid" class="trophy-grid">
+        <!-- Dynamically injected trophies will go here -->
+      </div>
+    </section>
+
+    <!-- TAB 7: SETTINGS -->
     <section id="tab-settings" class="tab-pane">
       <div class="section-header">
         <h2>Application Settings</h2>
@@ -832,6 +843,19 @@
     </div>
   </div>
 
+  <!-- Achievement Unlocked Modal -->
+  <div id="modal-achievement-unlocked" class="modal">
+    <div class="modal-content" style="text-align: center; max-width: 400px; padding: 40px 20px;">
+      <div class="achievement-icon-container" style="font-size: 5rem; margin-bottom: 20px;">
+        <span id="achievement-unlocked-icon">🏆</span>
+      </div>
+      <h2 style="margin-bottom: 10px; font-weight: 800; color: var(--color-accent);">Achievement Unlocked!</h2>
+      <h3 id="achievement-unlocked-title" style="margin-bottom: 5px;">Bronze Iron Mover</h3>
+      <p id="achievement-unlocked-desc" class="text-secondary" style="margin-bottom: 30px;">Total time spent weightlifting: 100 minutes.</p>
+      <button type="button" class="btn btn-primary btn-full modal-close-btn" style="font-size: 1.1rem;">Awesome!</button>
+    </div>
+  </div>
+
   <!-- Bottom Navigation Bar -->
   <nav class="app-nav">
     <div class="nav-container">
@@ -865,6 +889,12 @@
         </svg>
         <span>Analytics</span>
       </button>
+      <button class="nav-item" data-tab="tab-trophies" id="nav-btn-trophies">
+        <svg viewBox="0 0 24 24" width="24" height="24">
+          <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0 0 11 15.9V19H7v2h10v-2h-4v-3.1a5.01 5.01 0 0 0 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM7 5h10v1.08c0 .71-.34 1.34-.84 1.74A2.99 2.99 0 0 1 14 9H10c-.86 0-1.63-.44-2.16-1.18A2.21 2.21 0 0 1 7 6.08V5zm-2 4c-1.1 0-2-.9-2-2V7h2v2zM19 9c-1.1 0-2-.9-2-2V7h2v2z" fill="currentColor"/>
+        </svg>
+        <span>Trophies</span>
+      </button>
       <button class="nav-item" data-tab="tab-settings">
         <svg viewBox="0 0 24 24" width="24" height="24">
           <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/>
@@ -880,6 +910,7 @@
   <script src="gcal.js"></script>
   <script src="ai.js"></script>
   <script src="analytics.js"></script>
+  <script src="trophies.js"></script>
   <script src="app.js"></script>
   
   <!-- Toast Notification Container -->

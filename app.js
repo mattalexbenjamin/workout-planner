@@ -252,6 +252,34 @@ const APEX_APP = {
 
   saveLogsToStorage() {
     localStorage.setItem("apex_logs", JSON.stringify(this.state.loggedWorkouts));
+    this.checkAchievements();
+  },
+
+  checkAchievements() {
+    if (typeof APEX_TROPHIES === "undefined") return;
+    const { newlyUnlocked } = APEX_TROPHIES.getNewlyUnlockedTiers(this.state.loggedWorkouts);
+    if (newlyUnlocked && newlyUnlocked.length > 0) {
+      const unlock = newlyUnlocked[0];
+      const modal = document.getElementById("modal-achievement-unlocked");
+      if (modal) {
+        document.getElementById("achievement-unlocked-icon").innerText = unlock.achievement.icon;
+        document.getElementById("achievement-unlocked-title").innerText = unlock.tier.name;
+        document.getElementById("achievement-unlocked-desc").innerText = `${unlock.achievement.description} Milestone reached: ${unlock.tier.threshold}`;
+        
+        const iconContainer = modal.querySelector(".achievement-icon-container");
+        iconContainer.className = `achievement-icon-container badge-${unlock.tier.level}`;
+        
+        modal.classList.add("active");
+        
+        const closeBtn = modal.querySelector(".modal-close-btn");
+        closeBtn.onclick = () => {
+          modal.classList.remove("active");
+          if (newlyUnlocked.length > 1) {
+            this.showToast(`Also unlocked: ${newlyUnlocked.slice(1).map(u => u.tier.name).join(", ")}`, "success");
+          }
+        };
+      }
+    }
   },
 
   // Toast Notifications
@@ -1306,10 +1334,57 @@ const APEX_APP = {
     this.renderCalendarTab();
     this.renderLibraryTab();
     this.renderHistoryTab();
+    if (this.state.activeTab === "tab-trophies") {
+      this.renderTrophyTab();
+    }
     if (this.state.activeTab === "tab-analytics" && typeof APEX_ANALYTICS !== "undefined") {
       APEX_ANALYTICS.updateCharts(this.state.loggedWorkouts, this.state.analyticsRangeDays, this.state.currentDateStr);
       this.updateAnalyticsMLInsightsUI();
     }
+  },
+
+  renderTrophyTab() {
+    if (typeof APEX_TROPHIES === "undefined") return;
+    const grid = document.getElementById("trophy-grid");
+    if (!grid) return;
+    
+    // Evaluate achievements but don't notify
+    const unlocks = APEX_TROPHIES.evaluateAchievements(this.state.loggedWorkouts);
+    let html = "";
+    
+    APEX_TROPHIES.achievements.forEach(ach => {
+      const state = unlocks[ach.id];
+      const highestTier = state.highestTierUnlocked;
+      const nextTier = state.nextTier;
+      
+      const isUnlocked = !!highestTier;
+      const badgeClass = isUnlocked ? `badge-${highestTier.level}` : "badge-locked";
+      const title = isUnlocked ? highestTier.name : ach.title;
+      
+      let progressHtml = "";
+      if (nextTier) {
+        const percent = Math.min(100, Math.round((state.currentValue / nextTier.threshold) * 100));
+        progressHtml = `
+          <div class="trophy-progress-container">
+            <div class="trophy-progress-fill" style="width: ${percent}%"></div>
+          </div>
+          <div class="trophy-progress-text">${state.currentValue} / ${nextTier.threshold} for next tier</div>
+        `;
+      } else {
+        progressHtml = `<div class="trophy-progress-text text-accent">MAXED OUT</div>`;
+      }
+      
+      html += `
+        <div class="trophy-card ${isUnlocked ? 'unlocked' : ''} ${badgeClass}">
+          <div class="trophy-icon">${ach.icon}</div>
+          <div class="trophy-title">${title}</div>
+          <div class="trophy-desc">${ach.description}</div>
+          ${progressHtml}
+        </div>
+      `;
+    });
+    
+    grid.innerHTML = html;
   },
 
   updateAnalyticsMLInsightsUI() {
