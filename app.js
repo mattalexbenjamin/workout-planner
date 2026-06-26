@@ -1026,10 +1026,17 @@ const APEX_APP = {
         intensity: intensity,
         exercises: checkedExercises,
         notes: notes,
-        intention: intention
+        intention: intention,
+        lastUpdated: Date.now()
       };
 
-      const existingIndex = uuidField ? this.state.loggedWorkouts.findIndex(w => w.uuid === uuidField) : -1;
+      let existingIndex = -1;
+      if (uuidField) {
+        existingIndex = this.state.loggedWorkouts.findIndex(w => w.uuid === uuidField);
+      } else {
+        // Fallback for legacy logs without uuid
+        existingIndex = this.state.loggedWorkouts.findIndex(w => w.date === date && w.id === (workoutId || "custom_lift"));
+      }
       if (existingIndex > -1) {
         const orig = this.state.loggedWorkouts[existingIndex];
         newLog.gcalEventId = orig.gcalEventId;
@@ -1071,10 +1078,16 @@ const APEX_APP = {
         intensity: intensity,
         exercises: [],
         notes: notes,
-        intention: "endurance" // Sports usually default to endurance/cardio fatigue profile
+        intention: "endurance",
+        lastUpdated: Date.now()
       };
 
-      const existingIndex = uuidField ? this.state.loggedWorkouts.findIndex(w => w.uuid === uuidField) : -1;
+      let existingIndex = -1;
+      if (uuidField) {
+        existingIndex = this.state.loggedWorkouts.findIndex(w => w.uuid === uuidField);
+      } else {
+        existingIndex = this.state.loggedWorkouts.findIndex(w => w.date === date && w.id === (type + "_session"));
+      }
       if (existingIndex > -1) {
         const orig = this.state.loggedWorkouts[existingIndex];
         newLog.gcalEventId = orig.gcalEventId;
@@ -2238,7 +2251,15 @@ const APEX_APP = {
     const logsMap = {};
     const addLog = (log) => {
       const key = log.uuid || (log.date + "_" + log.id);
-      logsMap[key] = log;
+      if (!logsMap[key]) {
+        logsMap[key] = log;
+      } else {
+        const existingTime = logsMap[key].lastUpdated || 0;
+        const newTime = log.lastUpdated || 0;
+        if (newTime >= existingTime) {
+          logsMap[key] = log;
+        }
+      }
     };
     driveLogs.forEach(addLog);
     localLogs.forEach(addLog);
@@ -2246,6 +2267,10 @@ const APEX_APP = {
   },
 
   syncWithGDrive(silent = false) {
+    if (this.state.syncingDrive) {
+      if (!silent) alert("Sync is currently in progress. Please wait...");
+      return;
+    }
     if (APEX_GCAL.isMockEnabled) {
       if (!silent) alert("Google Drive Sync is disabled in Mock Calendar Mode.");
       return;
