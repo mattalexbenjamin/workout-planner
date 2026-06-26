@@ -4,6 +4,8 @@
 const APEX_ANALYTICS = {
   workoutTypeChart: null,
   liftingFocusChart: null,
+  volumeLoadChart: null,
+  repRangeChart: null,
 
   init() {
     this.setupEventListeners();
@@ -157,6 +159,12 @@ const APEX_ANALYTICS = {
 
     // 5. Update Chart.js Lifting Muscle Focus Radar Chart
     this.renderLiftingFocusChart(legsExercisesCount, backExercisesCount, chestExercisesCount, shouldersExercisesCount, armsExercisesCount, coreExercisesCount);
+
+    // 6. Update Volume Load Chart
+    this.renderVolumeLoadChart(filteredLogs);
+
+    // 7. Update Rep Range Chart
+    this.renderRepRangeChart(filteredLogs);
   },
 
   updateSVGHeatmap(legs, back, chest, shoulders, arms, core, rangeDays) {
@@ -403,6 +411,147 @@ const APEX_ANALYTICS = {
               }
             }
           }
+        }
+      }
+    });
+    });
+  },
+
+  renderRepRangeChart(logs) {
+    const ctx = document.getElementById("chart-rep-ranges");
+    if (!ctx) return;
+    
+    let heavy = 0; // 1-5 reps
+    let hypertrophy = 0; // 6-12 reps
+    let endurance = 0; // 13+ reps
+    
+    logs.forEach(log => {
+      if (log.type === "lifting" && log.exercises) {
+        log.exercises.forEach(ex => {
+          const sets = parseInt(ex.sets) || 0;
+          const reps = parseInt(ex.reps) || 0;
+          if (reps >= 1 && reps <= 5) heavy += sets;
+          else if (reps >= 6 && reps <= 12) hypertrophy += sets;
+          else if (reps >= 13) endurance += sets;
+        });
+      }
+    });
+
+    if (this.repRangeChart) this.repRangeChart.destroy();
+    
+    this.repRangeChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Heavy (1-5)', 'Hypertrophy (6-12)', 'Endurance (13+)'],
+        datasets: [{
+          label: 'Total Sets',
+          data: [heavy, hypertrophy, endurance],
+          backgroundColor: [
+            'rgba(239, 68, 68, 0.7)',
+            'rgba(24, 119, 242, 0.7)',
+            'rgba(16, 185, 129, 0.7)'
+          ],
+          borderColor: [
+            'rgba(239, 68, 68, 1)',
+            'rgba(24, 119, 242, 1)',
+            'rgba(16, 185, 129, 1)'
+          ],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        }
+      }
+    });
+  },
+
+  renderVolumeLoadChart(logs) {
+    const ctx = document.getElementById("chart-volume-load");
+    const selectEl = document.getElementById("analytics-exercise-select");
+    if (!ctx || !selectEl) return;
+    
+    // 1. Gather all exercises and their frequency
+    const exFreq = {};
+    logs.forEach(log => {
+      if (log.type === "lifting" && log.exercises) {
+        log.exercises.forEach(ex => {
+          if (!exFreq[ex.name]) exFreq[ex.name] = 0;
+          exFreq[ex.name]++;
+        });
+      }
+    });
+
+    // 2. Populate select if empty
+    if (selectEl.options.length === 0) {
+      const sortedEx = Object.keys(exFreq).sort((a,b) => exFreq[b] - exFreq[a]);
+      sortedEx.forEach((exName, idx) => {
+        const opt = document.createElement("option");
+        opt.value = exName;
+        opt.innerText = exName;
+        if (idx < 3) opt.selected = true; // Select top 3 by default
+        selectEl.appendChild(opt);
+      });
+      
+      // Add event listener once when populating
+      selectEl.addEventListener("change", () => {
+        this.renderVolumeLoadChart(logs); // Re-render on selection
+      });
+    }
+
+    // 3. Get selected exercises
+    const selectedExercises = Array.from(selectEl.selectedOptions).map(opt => opt.value);
+    
+    // 4. Calculate Volume Load over time for selected exercises
+    const datesMap = {};
+    logs.forEach(log => {
+      if (log.type === "lifting" && log.exercises) {
+        const date = log.date;
+        if (!datesMap[date]) datesMap[date] = {};
+        
+        log.exercises.forEach(ex => {
+          if (selectedExercises.includes(ex.name)) {
+            const vol = (parseInt(ex.sets) || 0) * (parseInt(ex.reps) || 0) * (parseInt(ex.weight) || 0);
+            if (!datesMap[date][ex.name]) datesMap[date][ex.name] = 0;
+            datesMap[date][ex.name] += vol;
+          }
+        });
+      }
+    });
+
+    // Sort dates
+    const sortedDates = Object.keys(datesMap).sort();
+    
+    // Prepare datasets
+    const colors = ['#1877F2', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+    const datasets = selectedExercises.map((exName, i) => {
+      const data = sortedDates.map(d => datesMap[d][exName] || 0);
+      return {
+        label: exName,
+        data: data,
+        borderColor: colors[i % colors.length],
+        backgroundColor: colors[i % colors.length] + '33',
+        tension: 0.3,
+        fill: true
+      };
+    });
+
+    if (this.volumeLoadChart) this.volumeLoadChart.destroy();
+    
+    this.volumeLoadChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: sortedDates,
+        datasets: datasets
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { beginAtZero: true, title: { display: true, text: 'Volume Load (lbs)' } }
         }
       }
     });

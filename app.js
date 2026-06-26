@@ -998,12 +998,17 @@ const APEX_APP = {
       const notes = document.getElementById("log-workout-notes").value;
       const workoutId = document.getElementById("log-workout-id").value;
       
-      // Get checked exercises with sets and reps
+      // Get checked exercises with sets, reps, and weight
       const checkedExercises = [];
-      document.querySelectorAll(".exercise-chk:checked").forEach(chk => {
-        const setsAttr = chk.getAttribute("data-sets") || 3;
-        const repsAttr = chk.getAttribute("data-reps") || 10;
-        checkedExercises.push({ name: chk.value, sets: parseInt(setsAttr), reps: parseInt(repsAttr) });
+      document.querySelectorAll(".exercise-checkbox-row").forEach(row => {
+        const chk = row.querySelector(".exercise-chk");
+        if (chk && chk.checked) {
+          const setsAttr = chk.getAttribute("data-sets") || 3;
+          const repsAttr = chk.getAttribute("data-reps") || 10;
+          const weightInput = row.querySelector(".exercise-weight-input");
+          const weight = weightInput && weightInput.value ? parseInt(weightInput.value) : 0;
+          checkedExercises.push({ name: chk.value, sets: parseInt(setsAttr), reps: parseInt(repsAttr), weight: weight });
+        }
       });
 
       const intention = document.getElementById("log-workout-intention").value;
@@ -1223,14 +1228,22 @@ const APEX_APP = {
         const isChecked = existingLog && existingLog.exercises ? existingLog.exercises.some(e => (typeof e === 'string' ? e === ex.name : e.name === ex.name)) : true;
         const row = document.createElement("label");
         row.className = "exercise-checkbox-row";
+        const weightVal = (existingLog && existingLog.exercises) ? existingLog.exercises.find(e => (e.name || e) === ex.name)?.weight || "" : "";
         row.innerHTML = `
-          <input type="checkbox" class="exercise-chk" value="${ex.name}" data-sets="${ex.sets}" data-reps="${ex.reps}" ${isChecked ? 'checked' : ''}>
-          <span>
-            <strong>${ex.name}</strong>
-            <a href="${getExerciseGuideUrl(ex.name)}" target="_blank" rel="noopener" class="exercise-video-link" title="Watch Form Guide">🎬 Guide</a>
-            - ${ex.sets}x${ex.reps} <br>
-            <small class="text-secondary">${ex.notes}</small>
-          </span>
+          <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+            <div style="flex: 1;">
+              <input type="checkbox" class="exercise-chk" value="${ex.name}" data-sets="${ex.sets}" data-reps="${ex.reps}" ${isChecked ? 'checked' : ''}>
+              <span>
+                <strong>${ex.name}</strong>
+                <a href="${getExerciseGuideUrl(ex.name)}" target="_blank" rel="noopener" class="exercise-video-link" title="Watch Form Guide">🎬 Guide</a>
+                - ${ex.sets}x${ex.reps} <br>
+                <small class="text-secondary">${ex.notes}</small>
+              </span>
+            </div>
+            <div style="width: 80px; margin-left: 10px;">
+              <input type="number" class="form-input exercise-weight-input" placeholder="lbs" value="${weightVal}" style="padding: 4px 8px; font-size: 0.8rem; text-align: right;">
+            </div>
+          </div>
         `;
         exercisesContainer.appendChild(row);
       });
@@ -1248,10 +1261,22 @@ const APEX_APP = {
 
       // Add a couple of text lines or dynamic entries if needed
       exercisesContainer.innerHTML = `
-        <label class="exercise-checkbox-row"><input type="checkbox" class="exercise-chk" value="Upper Body Push Exercises" data-sets="3" data-reps="10" checked> Upper Body Push</label>
-        <label class="exercise-checkbox-row"><input type="checkbox" class="exercise-chk" value="Upper Body Pull Exercises" data-sets="3" data-reps="10" checked> Upper Body Pull</label>
-        <label class="exercise-checkbox-row"><input type="checkbox" class="exercise-chk" value="Lower Body Compound Lift" data-sets="4" data-reps="8" checked> Lower Body Compound Lift</label>
-        <label class="exercise-checkbox-row"><input type="checkbox" class="exercise-chk" value="Core Workout" data-sets="3" data-reps="15" checked> Core Workout</label>
+        <label class="exercise-checkbox-row" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+          <div><input type="checkbox" class="exercise-chk" value="Upper Body Push Exercises" data-sets="3" data-reps="10" checked> Upper Body Push</div>
+          <div style="width: 80px; margin-left: 10px;"><input type="number" class="form-input exercise-weight-input" placeholder="lbs" style="padding: 4px 8px; font-size: 0.8rem; text-align: right;"></div>
+        </label>
+        <label class="exercise-checkbox-row" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+          <div><input type="checkbox" class="exercise-chk" value="Upper Body Pull Exercises" data-sets="3" data-reps="10" checked> Upper Body Pull</div>
+          <div style="width: 80px; margin-left: 10px;"><input type="number" class="form-input exercise-weight-input" placeholder="lbs" style="padding: 4px 8px; font-size: 0.8rem; text-align: right;"></div>
+        </label>
+        <label class="exercise-checkbox-row" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+          <div><input type="checkbox" class="exercise-chk" value="Lower Body Compound Lift" data-sets="4" data-reps="8" checked> Lower Body Compound Lift</div>
+          <div style="width: 80px; margin-left: 10px;"><input type="number" class="form-input exercise-weight-input" placeholder="lbs" style="padding: 4px 8px; font-size: 0.8rem; text-align: right;"></div>
+        </label>
+        <label class="exercise-checkbox-row" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+          <div><input type="checkbox" class="exercise-chk" value="Core Workout" data-sets="3" data-reps="15" checked> Core Workout</div>
+          <div style="width: 80px; margin-left: 10px;"><input type="number" class="form-input exercise-weight-input" placeholder="lbs" style="padding: 4px 8px; font-size: 0.8rem; text-align: right;"></div>
+        </label>
       `;
     }
 

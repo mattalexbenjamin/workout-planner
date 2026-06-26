@@ -528,6 +528,32 @@
             <canvas id="chart-lifting-focus"></canvas>
           </div>
         </div>
+
+        <!-- New Section: Volume & Progression -->
+        <div class="dashboard-card analytics-card" style="grid-column: 1 / -1;">
+          <h3>Lifting Volume & Progression</h3>
+          <p class="card-description">Track Total Volume (Sets x Reps x Weight) over time for specific exercises.</p>
+          <div class="form-group" style="margin-bottom: 15px;">
+            <label for="analytics-exercise-select">Select Exercises (Top 3 Default):</label>
+            <select id="analytics-exercise-select" class="form-input" multiple style="height: 100px;">
+              <!-- Options populated dynamically -->
+            </select>
+            <small class="text-secondary">Hold Ctrl/Cmd to select multiple exercises.</small>
+          </div>
+          <div class="chart-container" style="position: relative; height:320px; width:100%;">
+            <canvas id="chart-volume-load"></canvas>
+          </div>
+        </div>
+
+        <!-- New Section: Rep Ranges -->
+        <div class="dashboard-card analytics-card" style="grid-column: 1 / -1;">
+          <h3>Rep Range Distribution</h3>
+          <p class="card-description">Distribution of sets across Heavy (1-5), Hypertrophy (6-12), and Endurance (13+) rep ranges.</p>
+          <div class="chart-container" style="position: relative; height:320px; width:100%;">
+            <canvas id="chart-rep-ranges"></canvas>
+          </div>
+        </div>
+
       </div>
     </section>
 
