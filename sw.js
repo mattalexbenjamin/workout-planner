@@ -1,4 +1,4 @@
-const CACHE_NAME = 'apex-summer-v20';
+const CACHE_NAME = 'apex-summer-v21';
 const ASSETS = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const ASSETS = [
   './ai.js',
   './analytics.js',
   './app.js',
+  './trophies.js',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
