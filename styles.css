@@ -175,8 +175,14 @@ body {
 
 .nav-container {
   display: flex;
-  justify-content: space-around;
+  justify-content: flex-start;
   align-items: center;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.nav-container::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-item {
@@ -190,10 +196,12 @@ body {
   font-size: 0.65rem;
   font-weight: 600;
   cursor: pointer;
-  padding: 6px 12px;
+  padding: 6px 4px;
   border-radius: var(--border-radius-sm);
   transition: var(--transition-fast);
   gap: 4px;
+  flex: 1 0 auto;
+  min-width: 60px;
 }
 
 .nav-item svg {
