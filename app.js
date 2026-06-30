@@ -33,6 +33,7 @@ const APEX_APP = {
   // Initialize App
   init() {
     this.loadStateFromStorage();
+    this.updateExerciseDatalist();
     this.setupEventListeners();
     this.setupRerollListeners();
     this.syncCalendarData();
@@ -253,6 +254,29 @@ const APEX_APP = {
   saveLogsToStorage() {
     localStorage.setItem("apex_logs", JSON.stringify(this.state.loggedWorkouts));
     this.checkAchievements();
+    this.updateExerciseDatalist();
+  },
+
+  updateExerciseDatalist() {
+    const datalist = document.getElementById("historical-exercises");
+    if (!datalist) return;
+    datalist.innerHTML = "";
+    
+    const uniqueExercises = new Set();
+    this.state.loggedWorkouts.forEach(log => {
+      if (log.type === "lifting" && log.exercises) {
+        log.exercises.forEach(ex => {
+          const name = typeof ex === "string" ? ex : ex.name;
+          if (name) uniqueExercises.add(name);
+        });
+      }
+    });
+
+    uniqueExercises.forEach(ex => {
+      const option = document.createElement("option");
+      option.value = ex;
+      datalist.appendChild(option);
+    });
   },
 
   checkAchievements() {
@@ -1010,6 +1034,18 @@ const APEX_APP = {
           checkedExercises.push({ name: chk.value, sets: parseInt(setsAttr), reps: parseInt(repsAttr), weight: weight });
         }
       });
+      
+      // Get dynamic exercises (Custom Lift Sessions)
+      document.querySelectorAll(".dynamic-exercise-row").forEach(row => {
+        const nameInput = row.querySelector(".dynamic-ex-name").value.trim();
+        if (nameInput) {
+           const sets = parseInt(row.querySelector(".dynamic-ex-sets").value) || 3;
+           const reps = parseInt(row.querySelector(".dynamic-ex-reps").value) || 10;
+           const wInput = row.querySelector(".dynamic-ex-weight").value;
+           const weight = wInput ? parseInt(wInput) : 0;
+           checkedExercises.push({ name: nameInput, sets, reps, weight });
+        }
+      });
 
       const intention = document.getElementById("log-workout-intention").value;
       const workoutName = document.getElementById("log-workout-name").value;
@@ -1272,28 +1308,76 @@ const APEX_APP = {
       notesField.placeholder = "Sets, reps, or personal records details...";
       notesField.value = existingLog ? existingLog.notes : "";
 
-      // Add a couple of text lines or dynamic entries if needed
-      exercisesContainer.innerHTML = `
-        <label class="exercise-checkbox-row" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-          <div><input type="checkbox" class="exercise-chk" value="Upper Body Push Exercises" data-sets="3" data-reps="10" checked> Upper Body Push</div>
-          <div style="width: 80px; margin-left: 10px;"><input type="number" class="form-input exercise-weight-input" placeholder="lbs" style="padding: 4px 8px; font-size: 0.8rem; text-align: right;"></div>
-        </label>
-        <label class="exercise-checkbox-row" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-          <div><input type="checkbox" class="exercise-chk" value="Upper Body Pull Exercises" data-sets="3" data-reps="10" checked> Upper Body Pull</div>
-          <div style="width: 80px; margin-left: 10px;"><input type="number" class="form-input exercise-weight-input" placeholder="lbs" style="padding: 4px 8px; font-size: 0.8rem; text-align: right;"></div>
-        </label>
-        <label class="exercise-checkbox-row" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-          <div><input type="checkbox" class="exercise-chk" value="Lower Body Compound Lift" data-sets="4" data-reps="8" checked> Lower Body Compound Lift</div>
-          <div style="width: 80px; margin-left: 10px;"><input type="number" class="form-input exercise-weight-input" placeholder="lbs" style="padding: 4px 8px; font-size: 0.8rem; text-align: right;"></div>
-        </label>
-        <label class="exercise-checkbox-row" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-          <div><input type="checkbox" class="exercise-chk" value="Core Workout" data-sets="3" data-reps="15" checked> Core Workout</div>
-          <div style="width: 80px; margin-left: 10px;"><input type="number" class="form-input exercise-weight-input" placeholder="lbs" style="padding: 4px 8px; font-size: 0.8rem; text-align: right;"></div>
-        </label>
-      `;
+      exercisesContainer.innerHTML = "";
+      
+      const addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.className = "btn btn-secondary";
+      addBtn.innerText = "+ Add Exercise";
+      addBtn.style.marginTop = "10px";
+      addBtn.style.width = "100%";
+      addBtn.addEventListener("click", () => {
+        exercisesContainer.insertBefore(this.createDynamicExerciseRow(), addBtn);
+      });
+
+      const renderRows = (exercises) => {
+        exercises.forEach(ex => {
+           exercisesContainer.insertBefore(this.createDynamicExerciseRow(ex), addBtn);
+        });
+      };
+
+      exercisesContainer.appendChild(addBtn);
+
+      const activeKey = this.state.aiProvider === "gemini" ? this.state.geminiApiKey : this.state.openaiApiKey;
+
+      if (existingLog && existingLog.exercises && existingLog.exercises.length > 0) {
+        renderRows(existingLog.exercises);
+      } else if (existingLog && existingLog.notes && activeKey) {
+        addBtn.innerText = "Parsing Calendar Description...";
+        addBtn.disabled = true;
+        APEX_AI.parseGCalDescription(this.state.aiProvider, activeKey, existingLog.notes, (parsedExercises) => {
+          addBtn.innerText = "+ Add Exercise";
+          addBtn.disabled = false;
+          if (parsedExercises.length > 0) {
+            renderRows(parsedExercises);
+          } else {
+            exercisesContainer.insertBefore(this.createDynamicExerciseRow(), addBtn);
+          }
+        }, (err) => {
+          console.warn("AI Parsing failed:", err);
+          addBtn.innerText = "+ Add Exercise";
+          addBtn.disabled = false;
+          exercisesContainer.insertBefore(this.createDynamicExerciseRow(), addBtn);
+        });
+      } else {
+        exercisesContainer.insertBefore(this.createDynamicExerciseRow(), addBtn);
+      }
     }
 
     modal.classList.add("active");
+  },
+
+  createDynamicExerciseRow(ex = { name: "", sets: 3, reps: 10, weight: 0 }) {
+    const row = document.createElement("div");
+    row.className = "dynamic-exercise-row";
+    row.style.display = "flex";
+    row.style.gap = "8px";
+    row.style.marginBottom = "8px";
+    row.style.alignItems = "center";
+    
+    row.innerHTML = `
+      <input type="text" class="form-input dynamic-ex-name" list="historical-exercises" placeholder="Exercise name" value="${ex.name || ''}" style="flex: 2; padding: 6px;">
+      <input type="number" class="form-input dynamic-ex-sets" placeholder="Sets" value="${ex.sets || ''}" style="flex: 1; padding: 6px;" min="1">
+      <input type="number" class="form-input dynamic-ex-reps" placeholder="Reps" value="${ex.reps || ''}" style="flex: 1; padding: 6px;" min="1">
+      <input type="number" class="form-input dynamic-ex-weight" placeholder="lbs" value="${ex.weight || ''}" style="flex: 1; padding: 6px;">
+      <button type="button" class="btn btn-danger btn-remove-ex" style="padding: 6px 10px;" title="Remove">🗑️</button>
+    `;
+    
+    row.querySelector(".btn-remove-ex").addEventListener("click", () => {
+      row.remove();
+    });
+    
+    return row;
   },
 
   finalizePlanCreation() {

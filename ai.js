@@ -534,5 +534,87 @@ Provide exactly one new exercise that replaces this one, fits the workout's inte
     } else {
       onError("Invalid AI Provider specified.");
     }
+  },
+
+  parseGCalDescription(provider, apiKey, description, onSuccess, onError) {
+    if (!apiKey) {
+      onError("API Key is missing.");
+      return;
+    }
+
+    const systemPrompt = `You are a data extraction assistant. Your task is to read unstructured text from a Google Calendar event description and extract the exercises, sets, reps, and weights.
+Return a STRICT JSON array of objects. Each object must have:
+{
+  "name": "String (Name of exercise)",
+  "sets": Number (integer),
+  "reps": Number (integer),
+  "weight": Number (integer, 0 if bodyweight or unspecified)
+}
+If there are no exercises found, return an empty array []. Do not include markdown formatting or extra text.`;
+
+    const userPrompt = `Extract the exercises from this description:\n\n${description}`;
+
+    if (provider === 'gemini') {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: { text: systemPrompt } },
+          contents: [{ parts: [{ text: userPrompt }] }],
+          generationConfig: { response_mime_type: "application/json" }
+        })
+      })
+      .then(res => {
+        if (!res.ok) throw new Error("Gemini API request failed.");
+        return res.json();
+      })
+      .then(data => {
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) throw new Error("Empty response from Gemini.");
+        try {
+          const exercises = JSON.parse(text);
+          onSuccess(Array.isArray(exercises) ? exercises : []);
+        } catch (e) {
+          throw new Error("Failed to parse Gemini JSON.");
+        }
+      })
+      .catch(err => onError(err.message));
+    } else if (provider === 'openai') {
+      const url = "https://api.openai.com/v1/chat/completions";
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ]
+        })
+      })
+      .then(res => {
+        if (!res.ok) throw new Error("OpenAI API request failed.");
+        return res.json();
+      })
+      .then(data => {
+        const text = data.choices?.[0]?.message?.content;
+        if (!text) throw new Error("Empty response from OpenAI.");
+        try {
+          let parsed = JSON.parse(text);
+          let exercises = parsed.exercises || parsed;
+          onSuccess(Array.isArray(exercises) ? exercises : Object.values(exercises));
+        } catch (e) {
+          throw new Error("Failed to parse OpenAI JSON.");
+        }
+      })
+      .catch(err => onError(err.message));
+    } else {
+      onError("Invalid AI Provider specified.");
+    }
   }
 };
