@@ -567,6 +567,45 @@ const APEX_APP = {
       });
     });
 
+    // Modal Category Swappers
+    document.getElementById("log-workout-type").addEventListener("change", (e) => {
+      const newType = e.target.value;
+      if (newType !== "lifting") {
+        const existingLog = {
+          uuid: document.getElementById("log-workout-uuid").value,
+          id: document.getElementById("log-workout-id").value,
+          name: document.getElementById("log-workout-name").value,
+          date: document.getElementById("log-workout-date").value,
+          duration: parseInt(document.getElementById("log-workout-duration").value) || 60,
+          intensity: parseInt(document.getElementById("log-workout-intensity").value) || 5,
+          notes: document.getElementById("log-workout-notes").value,
+          type: newType
+        };
+        document.getElementById("modal-log-workout").classList.remove("active");
+        this.openSportModal(newType, existingLog);
+      }
+    });
+
+    document.getElementById("log-sport-type").addEventListener("change", (e) => {
+      const newType = e.target.value;
+      const existingLog = {
+        uuid: document.getElementById("log-sport-uuid").value,
+        id: "",
+        name: newType.charAt(0).toUpperCase() + newType.slice(1) + " Session",
+        date: document.getElementById("log-sport-date").value,
+        duration: parseInt(document.getElementById("log-sport-duration").value) || 60,
+        intensity: parseInt(document.getElementById("log-sport-intensity").value) || 5,
+        notes: document.getElementById("log-sport-notes").value,
+        type: newType
+      };
+      document.getElementById("modal-log-sport").classList.remove("active");
+      if (newType === "lifting") {
+        this.openWorkoutModal(null, existingLog);
+      } else {
+        this.openSportModal(newType, existingLog);
+      }
+    });
+
     // Settings: Mock Mode Toggle
     document.getElementById("gcal-mock-toggle").addEventListener("change", (e) => {
       APEX_GCAL.isMockEnabled = e.target.checked;
@@ -1237,6 +1276,7 @@ const APEX_APP = {
     form.reset();
 
     document.getElementById("log-workout-uuid").value = existingLog ? existingLog.uuid : "";
+    document.getElementById("log-workout-type").value = "lifting";
 
     document.getElementById("log-workout-intention").value = existingLog && existingLog.intention ? existingLog.intention : (workoutTemplate && workoutTemplate.intention ? workoutTemplate.intention : "hypertrophy");
     
