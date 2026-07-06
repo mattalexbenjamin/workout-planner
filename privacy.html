@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy - Apex Summer 26</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { padding: 2rem; max-width: 800px; margin: 0 auto; color: var(--text-primary, #333); font-family: 'Inter', sans-serif; }
+    h1, h2 { color: var(--brand-primary, #1877F2); margin-top: 1.5rem; }
+    p, li { line-height: 1.6; margin-bottom: 1rem; }
+    .back-link { display: inline-block; margin-bottom: 2rem; color: var(--brand-primary, #1877F2); text-decoration: none; font-weight: 500; }
+    .back-link:hover { text-decoration: underline; }
+    /* Simple dark mode support just in case */
+    @media (prefers-color-scheme: dark) {
+      body { background-color: #121212; color: #e0e0e0; }
+      h1, h2 { color: #4da3ff; }
+      .back-link { color: #4da3ff; }
+    }
+  </style>
+</head>
+<body>
+  <a href="index.html" class="back-link">&larr; Back to App</a>
+  <h1>Privacy Policy</h1>
+  <p>Last updated: June 2026</p>
+  
+  <h2>1. Introduction</h2>
+  <p>Welcome to Apex Summer 26 ("we", "our", or "us"). We are committed to protecting your personal information and your right to privacy. This Privacy Policy explains how we collect, use, and share information about you when you use our web application (the "App").</p>
+
+  <h2>2. Information We Collect</h2>
+  <p>Our App integrates with Google APIs to provide scheduling and data backup features. Specifically:</p>
+  <ul>
+    <li><strong>Google Calendar Data:</strong> We request read-only access to your Google Calendar (<code>calendar.readonly</code>) to check your schedule and recommend optimal workout times based on your existing events.</li>
+    <li><strong>Google Drive Data:</strong> We request access to create and manage specific files in your Google Drive (<code>drive.file</code>) strictly to save and backup your workout logs and application settings. We do not access files that were not created by the App.</li>
+  </ul>
+  <p>All Google data is accessed directly between your browser and Google's servers. We do not transmit this data to any external servers or databases of our own.</p>
+
+  <h2>3. How We Use Your Information</h2>
+  <p>We use the information accessed through Google APIs solely to provide the core functionality of the App:</p>
+  <ul>
+    <li>To read your calendar availability so the AI can recommend appropriate workout times without scheduling conflicts.</li>
+    <li>To save your workout history and preferences to your personal Google Drive for data persistence across your devices.</li>
+  </ul>
+
+  <h2>4. Data Storage and Security</h2>
+  <p>Your calendar data is only processed locally within your browser and is not stored persistently by us. Your workout logs and settings are stored locally on your device (using LocalStorage/SessionStorage) and synced directly to your personal Google Drive account. We do not operate any backend servers that store your data.</p>
+
+  <h2>5. Your Choices</h2>
+  <p>You can revoke the App's access to your Google account at any time through your Google Account Security settings. Doing so will disable the calendar scheduling and cloud backup features of the App, but you can continue to use the App's local features.</p>
+
+  <h2>6. Contact Us</h2>
+  <p>If you have questions or comments about this Privacy Policy, please open an issue in the <a href="https://github.com/mattalexbenjamin/workout-planner">GitHub repository</a>.</p>
+</body>
+</html>
