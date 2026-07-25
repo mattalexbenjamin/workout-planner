@@ -6,10 +6,11 @@ import { useAuth } from '@/components/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { ATHLETIC_WORKOUTS, getExerciseGuideUrl } from '@/lib/workouts-catalog';
 import { getRecommendation, formatDateKey } from '@/lib/recommender';
-import { createGoogleCalendarEvent, getSavedCalendarId } from '@/lib/gcalendar';
+import { createGoogleCalendarEvent, fetchCalendarEvents, getSavedCalendarId } from '@/lib/gcalendar';
 import { 
   Sparkles, Calendar as CalendarIcon, Activity, PlusCircle, CheckCircle, 
-  Flame, Dumbbell, Trash2, Check, Target, Zap, ChevronDown, ChevronUp
+  Flame, Dumbbell, Trash2, Check, Target, Zap, ChevronDown, ChevronUp,
+  Bot, Wand2, Sliders
 } from 'lucide-react';
 
 const DEFAULT_HABITS = [
@@ -48,6 +49,14 @@ export default function TodayPage() {
     duration: 45,
     notes: ''
   });
+
+  // AI Workout Generator State
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiDuration, setAiDuration] = useState(45);
+  const [aiEquipment, setAiEquipment] = useState('Full Gym');
+  const [aiFocusPrompt, setAiFocusPrompt] = useState('');
+  const [aiError, setAiError] = useState(null);
 
   const todayColRef = useRef(null);
 
@@ -284,6 +293,73 @@ export default function TodayPage() {
     fetchUserData();
   }
 
+  async function handleGenerateAiWorkout(e) {
+    if (e) e.preventDefault();
+    setAiGenerating(true);
+    setAiError(null);
+
+    try {
+      // 1. Gather Google Calendar context for today & tomorrow
+      let calendarScheduleText = '';
+      const activeToken = session?.provider_token || (typeof window !== 'undefined' ? localStorage.getItem('nexus_provider_token') : null);
+
+      if (activeToken) {
+        const targetCalId = getSavedCalendarId(profile);
+        const todayStr = new Date().toISOString();
+        const tmr = new Date();
+        tmr.setDate(tmr.getDate() + 2);
+        const tmrStr = tmr.toISOString();
+
+        const events = await fetchCalendarEvents(activeToken, targetCalId, todayStr, tmrStr);
+        if (events && events.length > 0) {
+          calendarScheduleText = events.map(ev => `- Event: "${ev.summary}" on ${ev.date} (Duration: ${ev.duration || 45} mins)`).join('\n');
+        }
+      }
+
+      // 2. Gather recent workout history text
+      const recentLogsText = workouts.slice(0, 5).map(w => `- ${w.date}: ${w.workout_name || w.summary} (${w.duration || 45} mins)`).join('\n');
+
+      // 3. Gather habit compliance status
+      const completedHabitsCount = habits.filter(h => habitLogs[`${h.id}_${currentDateStr}`]).length;
+      const habitStatusText = `Daily Habits: ${completedHabitsCount}/${habits.length} completed today.`;
+
+      // 4. Call API route with context payload
+      const res = await fetch('/api/ai/coach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: aiFocusPrompt || 'Generate an optimal athletic session matching my schedule and fatigue context',
+          soreness,
+          userWeight: profile?.weight || 190,
+          equipment: aiEquipment,
+          duration: Number(aiDuration),
+          provider: 'gemini',
+          calendarSchedule: calendarScheduleText,
+          recentLogs: recentLogsText,
+          habitStatus: habitStatusText
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to generate AI workout');
+
+      if (data.workout) {
+        setSelectedWorkout(data.workout);
+        setRecommendation({
+          id: 'ai_generated',
+          name: data.workout.name,
+          reason: data.workout.description || 'AI session generated using your soreness metrics, Google Calendar schedule, and training history.'
+        });
+        setShowAiModal(false);
+      }
+    } catch (err) {
+      console.error('AI Generator Error:', err);
+      setAiError(err.message || 'Error generating AI session. Please check your Gemini API key in Settings.');
+    } finally {
+      setAiGenerating(false);
+    }
+  }
+
   return (
     <div>
       {/* 1. NEXUS Readiness & Energy Score Banner */}
@@ -433,12 +509,21 @@ export default function TodayPage() {
       {/* 4. NEXUS Recommended Session Card */}
       {recommendation && (
         <div className="dashboard-card highlighted">
-          <div className="card-header">
-            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-accent)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-              <Zap size={14} style={{ display: 'inline', marginRight: 4 }} />
-              NEXUS Adaptive Recommended Session
-            </span>
-            <h3>{recommendation.name}</h3>
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-accent)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                <Zap size={14} style={{ display: 'inline', marginRight: 4 }} />
+                NEXUS Adaptive Recommended Session
+              </span>
+              <h3>{recommendation.name}</h3>
+            </div>
+            <button
+              className="btn btn-secondary"
+              onClick={() => setShowAiModal(true)}
+              style={{ fontSize: '0.78rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6, color: '#00F0FF', borderColor: 'rgba(0, 240, 255, 0.4)' }}
+            >
+              <Wand2 size={15} /> Generate AI Session
+            </button>
           </div>
           <p className="card-description">{recommendation.reason}</p>
 
@@ -616,6 +701,102 @@ export default function TodayPage() {
 
             <button className="btn btn-primary btn-block" onClick={() => handleSaveWorkoutLog(null)}>
               Save Activity to Cloud
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* AI WORKOUT GENERATOR MODAL */}
+      {showAiModal && (
+        <div className="modal-overlay" onClick={() => setShowAiModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 540 }}>
+            <div className="modal-header">
+              <div>
+                <span className="badge-tag blue" style={{ fontSize: '0.7rem' }}>
+                  POWERED BY AI & LIFE CONTEXT
+                </span>
+                <h3 className="modal-title" style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Wand2 size={20} color="var(--color-accent)" /> Context-Aware AI Session Generator
+                </h3>
+              </div>
+              <button className="btn-close" onClick={() => setShowAiModal(false)}>×</button>
+            </div>
+
+            {/* Context Summary Cards */}
+            <div style={{ backgroundColor: 'var(--bg-surface-elevated)', border: '1px solid var(--border-color)', borderRadius: 'var(--border-radius-md)', padding: '12px 14px', marginBottom: 16 }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                🧠 Auto-Detected Context
+              </span>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8, fontSize: '0.78rem' }}>
+                <div>
+                  <strong>Soreness:</strong> Legs ({soreness.legs}/5), Core ({soreness.core}/5)
+                </div>
+                <div>
+                  <strong>Readiness:</strong> {readinessScore}% Score
+                </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <strong>Calendar & History:</strong> Auto-analyzing Google Calendar schedule & recent workout volume
+                </div>
+              </div>
+            </div>
+
+            {/* Target Duration Selector */}
+            <div className="form-group" style={{ marginBottom: 14 }}>
+              <label className="form-label">Target Session Duration</label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[15, 30, 45, 60, 90].map(mins => (
+                  <button
+                    key={mins}
+                    type="button"
+                    className={`filter-pill ${aiDuration === mins ? 'active' : ''}`}
+                    onClick={() => setAiDuration(mins)}
+                  >
+                    ⏱️ {mins} Mins
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Available Equipment Selector */}
+            <div className="form-group" style={{ marginBottom: 14 }}>
+              <label className="form-label">Available Equipment</label>
+              <select
+                className="form-select"
+                value={aiEquipment}
+                onChange={(e) => setAiEquipment(e.target.value)}
+              >
+                <option value="Full Gym">Full Gym (Barbell, Dumbbells, Cables, Machines)</option>
+                <option value="Dumbbells Only">Dumbbells & Bench Only</option>
+                <option value="Bodyweight & Mat">Bodyweight, Bands & Mat</option>
+                <option value="Sand & Outdoor">Sand / Beach / Outdoor Court</option>
+              </select>
+            </div>
+
+            {/* Custom Focus Prompt Input */}
+            <div className="form-group" style={{ marginBottom: 18 }}>
+              <label className="form-label">Specific Focus or Request (Optional)</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. Explosive vertical jump, chest hypertrophy, or recovery"
+                value={aiFocusPrompt}
+                onChange={(e) => setAiFocusPrompt(e.target.value)}
+              />
+            </div>
+
+            {aiError && (
+              <div style={{ padding: '8px 12px', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--color-danger)', borderRadius: 'var(--border-radius-sm)', color: 'var(--color-danger)', fontSize: '0.8rem', marginBottom: 14 }}>
+                {aiError}
+              </div>
+            )}
+
+            <button
+              className="btn btn-primary btn-block"
+              onClick={handleGenerateAiWorkout}
+              disabled={aiGenerating}
+              style={{ padding: '12px 18px', fontSize: '0.95rem' }}
+            >
+              {aiGenerating ? '⚡ Generating AI Workout...' : '🤖 Generate AI Session (Context-Aware)'}
             </button>
           </div>
         </div>

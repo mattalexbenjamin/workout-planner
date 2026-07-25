@@ -41,25 +41,64 @@ export async function POST(request) {
       return NextResponse.json({ error: "No Gemini API key configured on Vercel or in Settings." }, { status: 400 });
     }
 
-    const { prompt, soreness, userWeight, equipment, provider } = body;
+    const { prompt, soreness, userWeight, equipment, provider, duration, calendarSchedule, recentLogs, habitStatus } = body;
 
-    const systemPrompt = `You are APEX AI, an elite athletic strength & conditioning coach.
-Generate a custom, structured workout formatted strictly as valid JSON.
-The JSON must follow this exact structure:
+    const systemPrompt = `<ROLE>
+You are NEXUS AI, an elite athletic strength & conditioning coach and biomechanics specialist.
+Your task is to analyze the athlete's multi-modal life context—including muscle soreness metrics, Google Calendar events, recent training history, and habit compliance—and generate a highly customized, scientifically sound training session.
+</ROLE>
+
+<TACTICAL_CONSTRAINTS>
+1. FATIGUE MANAGEMENT: Auto-regulate volume and intensity based on soreness scores (1-5 scale). Avoid heavy loading on muscles with soreness >= 4.
+2. SCHEDULE CONFLICT AVOIDANCE: If Google Calendar shows high intensity athletic events (e.g. Volleyball match, Soccer game) today or tomorrow, program active recovery or primer work instead of taxing heavy lifts.
+3. INJURY PREVENTION: Include specific warm-up & RPE guidance in exercise notes.
+4. TIME SENSITIVITY: Respect the target session duration strictly (${duration || 45} minutes).
+</TACTICAL_CONSTRAINTS>
+
+<OUTPUT_SCHEMA>
+You MUST respond strictly with valid JSON conforming to this schema:
 {
   "name": "Workout Title",
   "category": "weightlifting | running | volleyball | flag_football | recovery",
   "duration": 45,
   "intensity": 8,
-  "description": "Short 1-2 sentence coach summary",
+  "description": "Short 1-2 sentence coach summary explaining why this session was generated given their fatigue & calendar context.",
   "exercises": [
-    { "name": "Exercise Name", "sets": "4", "reps": "8-10", "notes": "Form cues and RPE guidance" }
+    { 
+      "name": "Exercise Name", 
+      "sets": "4", 
+      "reps": "8-10", 
+      "notes": "Form cues, RPE (Rating of Perceived Exertion), and tempo guidance" 
+    }
   ]
 }
-Current Fatigue Levels (1-5 scale): Legs=${soreness?.legs || 1}, Shoulders=${soreness?.shoulders || 1}, Core=${soreness?.core || 1}, Overall Fatigue=${soreness?.fatigue || 1}.
-User Weight=${userWeight || 190}lbs. Equipment Available=${equipment || "Full Gym"}.
-User Request: ${prompt || "Generate optimal custom workout"}
-Do not output markdown codeblock syntax, output raw JSON string only.`;
+</OUTPUT_SCHEMA>`;
+
+    const userContextPayload = `<FATIGUE_METRICS>
+- Legs Soreness: ${soreness?.legs || 1}/5
+- Shoulders Soreness: ${soreness?.shoulders || 1}/5
+- Core Soreness: ${soreness?.core || 1}/5
+- Overall System Fatigue: ${soreness?.fatigue || 1}/5
+</FATIGUE_METRICS>
+
+<CALENDAR_SCHEDULE>
+${calendarSchedule || "No conflicting Google Calendar events scheduled for today/tomorrow."}
+</CALENDAR_SCHEDULE>
+
+<TRAINING_HISTORY>
+${recentLogs || "No recent workout history recorded."}
+</TRAINING_HISTORY>
+
+<HABIT_COMPLIANCE>
+${habitStatus || "Standard daily compliance."}
+</HABIT_COMPLIANCE>
+
+<USER_PREFERENCES>
+- Target Duration: ${duration || 45} Minutes
+- Available Equipment: ${equipment || "Full Gym"}
+- Bodyweight: ${userWeight || 190} lbs
+- Custom Focus Prompt: ${prompt || "Generate optimal context-informed session"}
+</USER_PREFERENCES>`;
 
     if (provider === 'openai') {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -70,7 +109,10 @@ Do not output markdown codeblock syntax, output raw JSON string only.`;
         },
         body: JSON.stringify({
           model: 'gpt-4o-mini',
-          messages: [{ role: 'system', content: systemPrompt }],
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userContextPayload }
+          ],
           response_format: { type: "json_object" }
         })
       });
@@ -84,7 +126,7 @@ Do not output markdown codeblock syntax, output raw JSON string only.`;
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: systemPrompt }] }],
+          contents: [{ parts: [{ text: `${systemPrompt}\n\n${userContextPayload}` }] }],
           generationConfig: { responseMimeType: "application/json" }
         })
       });
