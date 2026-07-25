@@ -35,22 +35,22 @@ export default function SettingsPage() {
     const localCalId = typeof window !== 'undefined' ? localStorage.getItem('apex_selected_calendar_id') : null;
     const localAutoSync = typeof window !== 'undefined' ? localStorage.getItem('apex_auto_sync_gcal') : null;
 
+    if (localCalId) {
+      setSelectedCalendarId(localCalId);
+    } else if (profile?.selected_calendar_id) {
+      setSelectedCalendarId(profile.selected_calendar_id);
+    }
+
+    if (localAutoSync !== null) {
+      setAutoSyncGcal(localAutoSync === 'true');
+    } else if (profile?.auto_sync_gcal !== undefined && profile?.auto_sync_gcal !== null) {
+      setAutoSyncGcal(profile.auto_sync_gcal);
+    }
+
     if (profile) {
       setGeminiApiKey(profile.gemini_api_key || '');
       setOpenaiApiKey(profile.openai_api_key || '');
       setProvider(profile.ai_provider || 'gemini');
-
-      if (profile.selected_calendar_id) {
-        setSelectedCalendarId(profile.selected_calendar_id);
-      } else if (localCalId) {
-        setSelectedCalendarId(localCalId);
-      }
-
-      if (profile.auto_sync_gcal !== undefined && profile.auto_sync_gcal !== null) {
-        setAutoSyncGcal(profile.auto_sync_gcal);
-      } else if (localAutoSync !== null) {
-        setAutoSyncGcal(localAutoSync === 'true');
-      }
 
       setGoals({
         startWeight: profile.start_weight || 195,
@@ -63,8 +63,6 @@ export default function SettingsPage() {
     } else {
       const localKey = localStorage.getItem('apex_gemini_api_key');
       if (localKey) setGeminiApiKey(localKey);
-      if (localCalId) setSelectedCalendarId(localCalId);
-      if (localAutoSync !== null) setAutoSyncGcal(localAutoSync === 'true');
     }
   }, [profile]);
 
@@ -178,9 +176,20 @@ export default function SettingsPage() {
               <select
                 className="form-select"
                 value={selectedCalendarId}
-                onChange={(e) => setSelectedCalendarId(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedCalendarId(val);
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('apex_selected_calendar_id', val);
+                  }
+                }}
               >
                 <option value="primary">Primary Google Calendar</option>
+                {selectedCalendarId && selectedCalendarId !== 'primary' && !userCalendars.some((c) => c.id === selectedCalendarId) && (
+                  <option value={selectedCalendarId}>
+                    {selectedCalendarId} (Saved)
+                  </option>
+                )}
                 {userCalendars.map((cal) => (
                   <option key={cal.id} value={cal.id}>
                     {cal.summary} {cal.primary ? '(Primary)' : ''}
