@@ -3,12 +3,25 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
-import { fetchCalendarEvents, getSavedCalendarId } from '@/lib/gcalendar';
-import { BarChart3, TrendingUp, Award, Calendar, RefreshCw, Zap, Clock, Activity } from 'lucide-react';
+import { fetchCalendarEvents, deleteGoogleCalendarEvent, updateGoogleCalendarEventDuration, getSavedCalendarId } from '@/lib/gcalendar';
+import { BarChart3, RefreshCw, Clock, Tag, Trash2, ChevronRight, CheckCircle, ExternalLink, Calendar as CalendarIcon, Dumbbell } from 'lucide-react';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PointElement, LineElement } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend);
+
+const CATEGORY_KEYS = ['weightlifting', 'volleyball', 'grass_volleyball', 'basketball', 'running', 'flag_football', 'recovery', 'other'];
+
+const CATEGORY_NAMES = {
+  weightlifting: '🏋️ Weightlifting',
+  volleyball: '🏐 Sand Volleyball',
+  grass_volleyball: '🌱 Grass Volleyball',
+  basketball: '🏀 Basketball',
+  running: '🏃 Running',
+  flag_football: '🏈 Flag Football',
+  recovery: '🧘 Recovery',
+  other: '⚡ Other'
+};
 
 export default function AnalyticsPage() {
   const { user, session, profile, signInWithGoogle } = useAuth();
@@ -17,6 +30,12 @@ export default function AnalyticsPage() {
   const [rangeDays, setRangeDays] = useState(240); // Default to 8 Months (~240 days)
   const [combinedEvents, setCombinedEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Selected Category & Event Modal States
+  const [selectedCategory, setSelectedCategory] = useState('weightlifting');
+  const [activeDetailEvent, setActiveDetailEvent] = useState(null);
+  const [categorySaved, setCategorySaved] = useState(false);
+  const [durationSaved, setDurationSaved] = useState(false);
 
   useEffect(() => {
     loadAnalyticsData();
@@ -111,6 +130,113 @@ export default function AnalyticsPage() {
     }
   }
 
+  // Handle Category Change inside Event Modal
+  async function handleCategoryChange(newCategory) {
+    if (!activeDetailEvent) return;
+
+    const updatedEvent = { ...activeDetailEvent, category: newCategory };
+    setActiveDetailEvent(updatedEvent);
+
+    if (activeDetailEvent.isGcal) {
+      const eventKey = activeDetailEvent.gcalId || activeDetailEvent.id;
+      const localOverrides = JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('apex_gcal_category_overrides') || '{}' : '{}');
+      localOverrides[eventKey] = newCategory;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('apex_gcal_category_overrides', JSON.stringify(localOverrides));
+      }
+
+      if (user) {
+        await supabase
+          .from('profiles')
+          .update({ gcal_category_overrides: localOverrides })
+          .eq('id', user.id);
+      }
+    } else if (activeDetailEvent.id) {
+      if (user) {
+        await supabase
+          .from('workout_logs')
+          .update({ category: newCategory })
+          .eq('id', activeDetailEvent.id);
+      } else if (typeof window !== 'undefined') {
+        const localLogs = JSON.parse(localStorage.getItem('nexus_logged_workouts') || localStorage.getItem('apex_logged_workouts') || '[]');
+        const updatedLogs = localLogs.map((l) => (l.id === activeDetailEvent.id ? { ...l, category: newCategory } : l));
+        localStorage.setItem('nexus_logged_workouts', JSON.stringify(updatedLogs));
+      }
+    }
+
+    setCategorySaved(true);
+    setTimeout(() => setCategorySaved(false), 2000);
+    loadAnalyticsData();
+  }
+
+  // Handle Duration Change inside Event Modal
+  async function handleDurationChange(newDuration) {
+    if (!activeDetailEvent) return;
+
+    const numDuration = Number(newDuration);
+    if (!numDuration || numDuration <= 0) return;
+
+    const updatedEvent = { ...activeDetailEvent, duration: numDuration };
+    setActiveDetailEvent(updatedEvent);
+
+    if (activeDetailEvent.isGcal) {
+      const activeToken = session?.provider_token || (typeof window !== 'undefined' ? localStorage.getItem('nexus_provider_token') : null);
+      if (activeToken && activeDetailEvent.gcalId) {
+        const targetCalId = getSavedCalendarId(profile);
+        await updateGoogleCalendarEventDuration(
+          activeToken,
+          targetCalId,
+          activeDetailEvent.gcalId,
+          numDuration,
+          activeDetailEvent.startDateTime,
+          activeDetailEvent.date
+        );
+      }
+    } else if (activeDetailEvent.id) {
+      if (user) {
+        await supabase
+          .from('workout_logs')
+          .update({ duration: numDuration })
+          .eq('id', activeDetailEvent.id);
+      } else if (typeof window !== 'undefined') {
+        const localLogs = JSON.parse(localStorage.getItem('nexus_logged_workouts') || localStorage.getItem('apex_logged_workouts') || '[]');
+        const updatedLogs = localLogs.map((l) => (l.id === activeDetailEvent.id ? { ...l, duration: numDuration } : l));
+        localStorage.setItem('nexus_logged_workouts', JSON.stringify(updatedLogs));
+      }
+    }
+
+    setDurationSaved(true);
+    setTimeout(() => setDurationSaved(false), 2000);
+    loadAnalyticsData();
+  }
+
+  // Handle Delete Event
+  async function handleDeleteEvent(eventToDelete) {
+    if (!eventToDelete) return;
+
+    const confirmDelete = window.confirm(`Are you sure you want to delete "${eventToDelete.workout_name || eventToDelete.summary}"?`);
+    if (!confirmDelete) return;
+
+    if (eventToDelete.isGcal) {
+      const activeToken = session?.provider_token || (typeof window !== 'undefined' ? localStorage.getItem('nexus_provider_token') : null);
+      if (activeToken && eventToDelete.gcalId) {
+        const targetCalId = getSavedCalendarId(profile);
+        await deleteGoogleCalendarEvent(activeToken, targetCalId, eventToDelete.gcalId);
+      }
+    } else if (eventToDelete.id) {
+      if (user) {
+        await supabase.from('workout_logs').delete().eq('id', eventToDelete.id);
+      } else if (typeof window !== 'undefined') {
+        const localLogs = JSON.parse(localStorage.getItem('nexus_logged_workouts') || localStorage.getItem('apex_logged_workouts') || '[]');
+        const updatedLogs = localLogs.filter((l) => l.id !== eventToDelete.id);
+        localStorage.setItem('nexus_logged_workouts', JSON.stringify(updatedLogs));
+      }
+    }
+
+    setActiveDetailEvent(null);
+    loadAnalyticsData();
+  }
+
   // Aggregate category durations
   const categoryStats = {
     weightlifting: 0,
@@ -139,42 +265,20 @@ export default function AnalyticsPage() {
   const topCategoryKey = sortedCategories[0]?.[0] || 'weightlifting';
   const topCategoryMins = sortedCategories[0]?.[1] || 0;
 
-  const categoryNames = {
-    weightlifting: '🏋️ Weightlifting',
-    volleyball: '🏐 Sand Volleyball',
-    grass_volleyball: '🌱 Grass Volleyball',
-    basketball: '🏀 Basketball',
-    running: '🏃 Running',
-    flag_football: '🏈 Flag Football',
-    recovery: '🧘 Recovery',
-    other: '⚡ Other'
-  };
+  // Filtered events for the currently selected category
+  const selectedCategoryEvents = combinedEvents
+    .filter((item) => categorizeEvent(item) === selectedCategory)
+    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
   const chartData = {
     labels: ['Weightlifting', 'Sand Volleyball', 'Grass Volleyball', 'Basketball', 'Running', 'Flag Football', 'Recovery', 'Other'],
     datasets: [
       {
         label: 'Total Active Hours',
-        data: [
-          (categoryStats.weightlifting / 60).toFixed(1),
-          (categoryStats.volleyball / 60).toFixed(1),
-          (categoryStats.grass_volleyball / 60).toFixed(1),
-          (categoryStats.basketball / 60).toFixed(1),
-          (categoryStats.running / 60).toFixed(1),
-          (categoryStats.flag_football / 60).toFixed(1),
-          (categoryStats.recovery / 60).toFixed(1),
-          (categoryStats.other / 60).toFixed(1)
-        ],
-        backgroundColor: [
-          '#0052FF',
-          '#F59E0B',
-          '#10B981',
-          '#F97316',
-          '#06B6D4',
-          '#EF4444',
-          '#8B5CF6',
-          '#64748B'
-        ],
+        data: CATEGORY_KEYS.map((k) => (categoryStats[k] / 60).toFixed(1)),
+        backgroundColor: CATEGORY_KEYS.map((k) => (k === selectedCategory ? '#00F0FF' : '#0052FF')),
+        borderColor: CATEGORY_KEYS.map((k) => (k === selectedCategory ? '#0052FF' : 'transparent')),
+        borderWidth: 2,
         borderRadius: 8
       }
     ]
@@ -183,11 +287,20 @@ export default function AnalyticsPage() {
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    onClick: (event, elements) => {
+      if (elements && elements.length > 0) {
+        const idx = elements[0].index;
+        const clickedCategory = CATEGORY_KEYS[idx];
+        if (clickedCategory) {
+          setSelectedCategory(clickedCategory);
+        }
+      }
+    },
     plugins: {
       legend: { display: false },
       tooltip: {
         callbacks: {
-          label: (context) => `${context.parsed.y} Hours (${Math.round(context.parsed.y * 60)} Mins)`
+          label: (context) => `${context.parsed.y} Hours (${Math.round(context.parsed.y * 60)} Mins) — Click to view events`
         }
       }
     },
@@ -211,7 +324,7 @@ export default function AnalyticsPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <h2><BarChart3 size={24} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 8 }} /> NEXUS Life & Fitness Analytics</h2>
-            <span className="card-description">Aggregating workouts & Google Calendar events across multi-sport categories.</span>
+            <span className="card-description">Click any bar on the chart to inspect, edit, or delete logged events for that sport category.</span>
           </div>
 
           <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={loadAnalyticsData} disabled={loading}>
@@ -279,7 +392,7 @@ export default function AnalyticsPage() {
             Top Sport Discipline
           </span>
           <h2 style={{ fontSize: '1.1rem', color: 'var(--color-text-primary)', marginTop: 8 }}>
-            {categoryNames[topCategoryKey] || '🏋️ Weightlifting'}
+            {CATEGORY_NAMES[topCategoryKey] || '🏋️ Weightlifting'}
           </h2>
           <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
             {(topCategoryMins / 60).toFixed(1)} hrs logged
@@ -287,17 +400,206 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* Chart Card */}
+      {/* Interactive Volume Chart Card */}
       <div className="dashboard-card">
-        <div className="card-header" style={{ marginBottom: 16 }}>
-          <h3>Multi-Sport Volume Distribution (Hours)</h3>
-          <span className="card-description">Total active hours accumulated in each category over the last {rangeDays} days.</span>
+        <div className="card-header" style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h3>Multi-Sport Volume Distribution (Hours)</h3>
+            <span className="card-description">Click any bar below to view and manage events for that category.</span>
+          </div>
+          <span className="badge-tag blue" style={{ fontSize: '0.75rem' }}>
+            Selected: {CATEGORY_NAMES[selectedCategory]}
+          </span>
         </div>
 
-        <div style={{ height: 280, position: 'relative' }}>
+        <div style={{ height: 280, position: 'relative', cursor: 'pointer' }}>
           <Bar data={chartData} options={chartOptions} />
         </div>
       </div>
+
+      {/* Category Events Manager Section */}
+      <div className="dashboard-card">
+        <div className="card-header" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            <h3>{CATEGORY_NAMES[selectedCategory]} Events ({selectedCategoryEvents.length})</h3>
+            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+              Total: <strong>{(categoryStats[selectedCategory] / 60).toFixed(1)} hrs</strong> logged over last {rangeDays} days
+            </span>
+          </div>
+        </div>
+
+        {/* Category Pill Buttons */}
+        <div className="feed-filter-bar" style={{ marginBottom: 16 }}>
+          {CATEGORY_KEYS.map((k) => (
+            <button
+              key={k}
+              className={`filter-pill ${selectedCategory === k ? 'active' : ''}`}
+              onClick={() => setSelectedCategory(k)}
+            >
+              {CATEGORY_NAMES[k]} ({combinedEvents.filter((item) => categorizeEvent(item) === k).length})
+            </button>
+          ))}
+        </div>
+
+        {/* Events List */}
+        {selectedCategoryEvents.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {selectedCategoryEvents.map((evt, idx) => (
+              <div
+                key={evt.gcalId || evt.id || idx}
+                className="dashboard-card"
+                style={{ marginBottom: 0, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-surface-elevated)' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ fontSize: '1.4rem' }}>
+                    {evt.isGcal ? '📅' : '🏋️'}
+                  </div>
+                  <div>
+                    <h4 style={{ fontSize: '0.95rem', margin: 0 }}>{evt.workout_name || evt.summary}</h4>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>
+                      {evt.date} • {evt.duration || 45} mins {evt.isGcal ? '• Google Calendar' : '• NEXUS Log'}
+                    </span>
+                    {evt.notes && (
+                      <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', margin: '2px 0 0 0', fontStyle: 'italic' }}>
+                        "{evt.notes}"
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                    onClick={() => setActiveDetailEvent(evt)}
+                  >
+                    Edit / Details <ChevronRight size={14} />
+                  </button>
+                  <button
+                    className="btn btn-danger"
+                    style={{ padding: '6px 10px', fontSize: '0.78rem' }}
+                    onClick={() => handleDeleteEvent(evt)}
+                    title="Delete Event"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="card-description" style={{ textAlign: 'center', padding: '24px 0', color: 'var(--color-text-muted)' }}>
+            No events logged under {CATEGORY_NAMES[selectedCategory]} in the last {rangeDays} days.
+          </p>
+        )}
+      </div>
+
+      {/* EVENT EDITING MODAL */}
+      {activeDetailEvent && (
+        <div className="modal-overlay" onClick={() => setActiveDetailEvent(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+            <div className="modal-header">
+              <div>
+                <span className={`badge-tag ${activeDetailEvent.isGcal ? 'blue' : 'green'}`} style={{ fontSize: '0.7rem', textTransform: 'uppercase' }}>
+                  {activeDetailEvent.isGcal ? 'Google Calendar Event' : 'NEXUS Workout Log'}
+                </span>
+                <h3 className="modal-title" style={{ marginTop: 4 }}>{activeDetailEvent.workout_name || activeDetailEvent.summary}</h3>
+              </div>
+              <button className="btn-close" onClick={() => setActiveDetailEvent(null)}>×</button>
+            </div>
+
+            <div style={{ display: 'flex', gap: 16, color: 'var(--color-text-secondary)', fontSize: '0.85rem', marginBottom: 16, borderBottom: '1px solid var(--border-color)', paddingBottom: 12 }}>
+              <span><CalendarIcon size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> {activeDetailEvent.date}</span>
+              <span><Clock size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> {activeDetailEvent.duration || 45} Mins</span>
+            </div>
+
+            {/* Sport Category Override Selector */}
+            <div className="form-group" style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 4, margin: 0 }}>
+                  <Tag size={14} /> Category Classification
+                </label>
+                {categorySaved && (
+                  <span className="badge-tag green" style={{ fontSize: '0.7rem', padding: '2px 8px' }}>
+                    Updated ✓
+                  </span>
+                )}
+              </div>
+              <select
+                className="form-select"
+                value={activeDetailEvent.category || selectedCategory}
+                onChange={(e) => handleCategoryChange(e.target.value)}
+              >
+                {CATEGORY_KEYS.map((k) => (
+                  <option key={k} value={k}>{CATEGORY_NAMES[k]}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Session Duration Selector & Custom Minute Input */}
+            <div className="form-group" style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 4, margin: 0 }}>
+                  <Clock size={14} /> Duration (Minutes)
+                </label>
+                {durationSaved && (
+                  <span className="badge-tag green" style={{ fontSize: '0.7rem', padding: '2px 8px' }}>
+                    Updated on Google Cal ✓
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <select
+                  className="form-select"
+                  value={activeDetailEvent.duration || 45}
+                  onChange={(e) => handleDurationChange(e.target.value)}
+                  style={{ flex: 1 }}
+                >
+                  <option value={15}>15 Minutes</option>
+                  <option value={30}>30 Minutes</option>
+                  <option value={45}>45 Minutes</option>
+                  <option value={60}>60 Minutes (1 hr)</option>
+                  <option value={75}>75 Minutes (1 hr 15m)</option>
+                  <option value={90}>90 Minutes (1.5 hrs)</option>
+                  <option value={120}>120 Minutes (2 hrs)</option>
+                  {!([15, 30, 45, 60, 75, 90, 120].includes(Number(activeDetailEvent.duration))) && (
+                    <option value={activeDetailEvent.duration}>
+                      {activeDetailEvent.duration} Minutes (Custom)
+                    </option>
+                  )}
+                </select>
+
+                <input
+                  type="number"
+                  className="form-input"
+                  style={{ width: 90 }}
+                  placeholder="Mins"
+                  value={activeDetailEvent.duration || ''}
+                  onChange={(e) => handleDurationChange(e.target.value)}
+                  min="1"
+                  max="720"
+                />
+              </div>
+            </div>
+
+            {activeDetailEvent.notes && (
+              <p className="card-description" style={{ marginBottom: 20, fontStyle: 'italic' }}>
+                "{activeDetailEvent.notes}"
+              </p>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                className="btn btn-danger"
+                onClick={() => handleDeleteEvent(activeDetailEvent)}
+                style={{ padding: '10px 16px' }}
+              >
+                <Trash2 size={16} style={{ marginRight: 4 }} /> Delete Event
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
