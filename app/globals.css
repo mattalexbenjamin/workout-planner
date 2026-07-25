@@ -1,23 +1,23 @@
-/* APEX STYLE SHEET - PREMIUM DARK ATHLETIC THEME */
+/* APEX STYLE SHEET - FANDUEL ELECTRIC SPORTS THEME */
 
 :root {
-  /* Core Colors */
-  --bg-primary: #0F172A;
-  --bg-surface: #1E293B;
-  --bg-surface-elevated: #334155;
+  /* Core FanDuel Palette */
+  --bg-primary: #0B0E14;
+  --bg-surface: #141923;
+  --bg-surface-elevated: #1E2638;
   
-  --color-accent: #38BDF8;
-  --color-accent-hover: #0284C7;
-  --color-accent-dim: rgba(56, 189, 248, 0.15);
+  --color-accent: #0052FF;
+  --color-accent-hover: #1D4ED8;
+  --color-accent-dim: rgba(0, 82, 255, 0.18);
   
-  --color-text-primary: #F8FAFC;
+  --color-text-primary: #FFFFFF;
   --color-text-secondary: #94A3B8;
   --color-text-muted: #64748B;
   
-  --color-success: #10B981;
-  --color-success-dim: rgba(16, 185, 129, 0.15);
-  --color-warning: #F59E0B;
-  --color-warning-dim: rgba(245, 158, 11, 0.15);
+  --color-success: #12E886;
+  --color-success-dim: rgba(18, 232, 134, 0.15);
+  --color-warning: #FFB800;
+  --color-warning-dim: rgba(255, 184, 0, 0.15);
   --color-info: #3B82F6;
   --color-info-dim: rgba(59, 130, 246, 0.15);
   --color-danger: #EF4444;
@@ -31,15 +31,15 @@
   --badge-diamond: linear-gradient(135deg, #b9f2ff, #00bfff);
 
   /* Borders & Shadows */
-  --border-color: #334155;
-  --border-color-focus: rgba(56, 189, 248, 0.5);
+  --border-color: #263046;
+  --border-color-focus: #0052FF;
   --border-radius-sm: 8px;
   --border-radius-md: 12px;
   --border-radius-lg: 24px;
   
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.4);
-  --shadow-accent: 0 4px 20px rgba(56, 189, 248, 0.25);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.5);
+  --shadow-accent: 0 4px 20px rgba(0, 82, 255, 0.3);
   
   /* Layout Transitions */
   --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -57,7 +57,7 @@
 body {
   background-color: var(--bg-primary);
   color: var(--color-text-primary);
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
   padding-bottom: 90px;
   min-height: 100vh;
@@ -66,12 +66,18 @@ body {
   align-items: center;
 }
 
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
 /* Layout Containers */
 .app-header {
   width: 100%;
   max-width: 650px;
   padding: 16px 20px;
-  background-color: rgba(15, 23, 42, 0.9);
+  background-color: rgba(11, 14, 20, 0.92);
   backdrop-filter: blur(16px);
   position: sticky;
   top: 0;
@@ -91,8 +97,9 @@ body {
 }
 
 .brand-title {
+  font-family: 'Outfit', sans-serif;
   font-size: 1.6rem;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 2px;
   color: var(--color-text-primary);
   line-height: 1;
@@ -100,7 +107,7 @@ body {
 
 .brand-subtitle {
   font-size: 0.65rem;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 3px;
   color: var(--color-accent);
   margin-top: 3px;
@@ -121,9 +128,9 @@ body {
   padding: 6px 12px;
   border-radius: var(--border-radius-lg);
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
   border: 1px solid var(--border-color);
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: var(--bg-surface);
 }
 
 .status-dot {
@@ -133,7 +140,7 @@ body {
 }
 
 .status-badge.connected {
-  border-color: rgba(16, 185, 129, 0.4);
+  border-color: rgba(18, 232, 134, 0.4);
   background-color: var(--color-success-dim);
   color: var(--color-success);
 }
@@ -158,7 +165,7 @@ body {
   transform: translateX(-50%);
   width: 100%;
   max-width: 650px;
-  background-color: rgba(15, 23, 42, 0.95);
+  background-color: rgba(11, 14, 20, 0.95);
   backdrop-filter: blur(20px);
   border-top: 1px solid var(--border-color);
   z-index: 100;
@@ -180,9 +187,9 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  font-family: inherit;
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
   cursor: pointer;
   padding: 6px 8px;
   border-radius: var(--border-radius-sm);
@@ -215,12 +222,12 @@ body {
 }
 
 .dashboard-card:hover {
-  border-color: rgba(56, 189, 248, 0.3);
+  border-color: rgba(0, 82, 255, 0.4);
 }
 
 .dashboard-card.highlighted {
   border-color: var(--color-accent);
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), var(--bg-surface) 70%);
+  background-color: var(--bg-surface);
   box-shadow: var(--shadow-accent);
 }
 
@@ -232,14 +239,16 @@ body {
 }
 
 .card-header h3 {
+  font-family: 'Outfit', sans-serif;
   font-size: 1.4rem;
   font-weight: 800;
   line-height: 1.2;
 }
 
 .card-header h4 {
+  font-family: 'Outfit', sans-serif;
   font-size: 1.1rem;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .card-description {
@@ -253,8 +262,8 @@ body {
 .btn {
   background: none;
   border: none;
-  font-family: inherit;
-  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
   font-size: 0.9rem;
   padding: 12px 20px;
   border-radius: var(--border-radius-sm);
@@ -269,9 +278,16 @@ body {
 
 .btn-primary {
   background-color: var(--color-accent);
-  color: #0F172A;
+  color: #FFFFFF;
   font-weight: 700;
-  box-shadow: 0 4px 14px rgba(56, 189, 248, 0.3);
+  box-shadow: 0 4px 14px rgba(0, 82, 255, 0.35);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-accent-hover);
+  color: #FFFFFF;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 82, 255, 0.45);
 }
 
 .btn-primary:hover {
