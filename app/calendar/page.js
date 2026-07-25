@@ -414,6 +414,8 @@ export default function CalendarFeedPage() {
                 <option value="weightlifting">🏋️ Weightlifting</option>
                 <option value="running">🏃 Running / Cardio</option>
                 <option value="volleyball">🏐 Sand Volleyball</option>
+                <option value="grass_volleyball">🌱 Grass Volleyball</option>
+                <option value="basketball">🏀 Basketball</option>
                 <option value="flag_football">🏈 Flag Football</option>
                 <option value="recovery">🧘 Recovery / Mobility</option>
                 <option value="other">⚡ Other Activity</option>
@@ -584,6 +586,8 @@ function FeedCard({ item, onOpenDetail, onComplete, onDeleteGcal }) {
     switch (cat) {
       case 'running': return '🏃';
       case 'volleyball': return '🏐';
+      case 'grass_volleyball': return '🌱';
+      case 'basketball': return '🏀';
       case 'flag_football': return '🏈';
       case 'recovery': return '🧘';
       default: return '🏋️';

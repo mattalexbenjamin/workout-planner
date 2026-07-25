@@ -39,39 +39,51 @@ export default function AnalyticsPage() {
   const categoryStats = {
     weightlifting: 0,
     volleyball: 0,
+    grass_volleyball: 0,
+    basketball: 0,
     running: 0,
     flag_football: 0,
-    recovery: 0
+    recovery: 0,
+    other: 0,
   };
 
   workouts.forEach(w => {
     const cat = (w.category || w.type || '').toLowerCase();
     const duration = Number(w.duration || 0);
     if (cat.includes('weight') || cat.includes('lifting')) categoryStats.weightlifting += duration;
+    else if (cat.includes('grass')) categoryStats.grass_volleyball += duration;
     else if (cat.includes('volleyball')) categoryStats.volleyball += duration;
-    else if (cat.includes('running')) categoryStats.running += duration;
+    else if (cat.includes('basketball') || cat.includes('hoop')) categoryStats.basketball += duration;
+    else if (cat.includes('running') || cat.includes('sprint') || cat.includes('jog')) categoryStats.running += duration;
     else if (cat.includes('football') || cat.includes('flag')) categoryStats.flag_football += duration;
     else if (cat.includes('recovery')) categoryStats.recovery += duration;
+    else categoryStats.other += duration;
   });
 
   const chartData = {
-    labels: ['Weightlifting', 'Volleyball', 'Running', 'Flag Football', 'Recovery'],
+    labels: ['Weightlifting', 'Sand Volleyball', 'Grass Volleyball', 'Basketball', 'Running', 'Flag Football', 'Recovery', 'Other'],
     datasets: [
       {
         label: 'Total Minutes Logged',
         data: [
           categoryStats.weightlifting,
           categoryStats.volleyball,
+          categoryStats.grass_volleyball,
+          categoryStats.basketball,
           categoryStats.running,
           categoryStats.flag_football,
-          categoryStats.recovery
+          categoryStats.recovery,
+          categoryStats.other
         ],
         backgroundColor: [
-          '#38BDF8',
+          '#0052FF',
           '#F59E0B',
           '#10B981',
+          '#F97316',
+          '#06B6D4',
           '#EF4444',
-          '#A855F7'
+          '#8B5CF6',
+          '#64748B'
         ],
         borderRadius: 8
       }

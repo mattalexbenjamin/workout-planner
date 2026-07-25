@@ -15,10 +15,12 @@ export default function WorkoutsPage() {
   const [logSuccess, setLogSuccess] = useState(null);
 
   const categories = [
-    { id: 'all', label: 'All (20)' },
+    { id: 'all', label: `All (${ATHLETIC_WORKOUTS.length})` },
     { id: 'weightlifting', label: 'Weightlifting' },
     { id: 'running', label: 'Running' },
-    { id: 'volleyball', label: 'Volleyball' },
+    { id: 'volleyball', label: 'Sand Volleyball' },
+    { id: 'grass_volleyball', label: 'Grass Volleyball' },
+    { id: 'basketball', label: 'Basketball' },
     { id: 'flag_football', label: 'Flag Football' },
     { id: 'recovery', label: 'Recovery' },
   ];
