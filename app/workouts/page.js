@@ -4,10 +4,11 @@ import React, { useState } from 'react';
 import { ATHLETIC_WORKOUTS, getExerciseGuideUrl } from '@/lib/workouts-catalog';
 import { useAuth } from '@/components/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
+import { createGoogleCalendarEvent } from '@/lib/gcalendar';
 import { Dumbbell, Clock, Flame, CheckCircle, ExternalLink } from 'lucide-react';
 
 export default function WorkoutsPage() {
-  const { user } = useAuth();
+  const { user, session, profile } = useAuth();
   const [supabase] = useState(() => createClient());
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [activeModalWorkout, setActiveModalWorkout] = useState(null);
@@ -44,6 +45,10 @@ export default function WorkoutsPage() {
     } else {
       const existing = JSON.parse(localStorage.getItem('apex_logged_workouts') || '[]');
       localStorage.setItem('apex_logged_workouts', JSON.stringify([newLog, ...existing]));
+    }
+
+    if (session?.provider_token && (profile?.auto_sync_gcal !== false)) {
+      await createGoogleCalendarEvent(session.provider_token, profile?.selected_calendar_id || 'primary', newLog);
     }
 
     setLogSuccess(workout.name);

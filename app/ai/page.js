@@ -4,10 +4,11 @@ import React, { useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { getExerciseGuideUrl } from '@/lib/workouts-catalog';
+import { createGoogleCalendarEvent } from '@/lib/gcalendar';
 import { Bot, Sparkles, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function AICoachPage() {
-  const { user, profile } = useAuth();
+  const { user, session, profile } = useAuth();
   const [supabase] = useState(() => createClient());
 
   const [prompt, setPrompt] = useState('');
@@ -114,6 +115,10 @@ export default function AICoachPage() {
     } else {
       const existing = JSON.parse(localStorage.getItem('apex_logged_workouts') || '[]');
       localStorage.setItem('apex_logged_workouts', JSON.stringify([newLog, ...existing]));
+    }
+
+    if (session?.provider_token && (profile?.auto_sync_gcal !== false)) {
+      await createGoogleCalendarEvent(session.provider_token, profile?.selected_calendar_id || 'primary', newLog);
     }
 
     setLogSuccess(true);

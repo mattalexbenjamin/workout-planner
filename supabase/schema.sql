@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   openai_api_key TEXT DEFAULT '',
   ai_provider TEXT DEFAULT 'gemini',
   selected_calendar_id TEXT DEFAULT 'primary',
+  auto_sync_gcal BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -61,6 +62,7 @@ CREATE TABLE IF NOT EXISTS public.workout_logs (
   exercises JSONB DEFAULT '[]'::jsonb,
   notes TEXT DEFAULT '',
   soreness_snapshot JSONB DEFAULT '{}'::jsonb,
+  status TEXT DEFAULT 'completed',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

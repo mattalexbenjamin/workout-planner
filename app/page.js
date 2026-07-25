@@ -5,10 +5,11 @@ import { useAuth } from '@/components/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { ATHLETIC_WORKOUTS, getExerciseGuideUrl } from '@/lib/workouts-catalog';
 import { getRecommendation, formatDateKey, calculateSoreness } from '@/lib/recommender';
+import { createGoogleCalendarEvent } from '@/lib/gcalendar';
 import { Sparkles, Calendar as CalendarIcon, Activity, PlusCircle, CheckCircle, Flame, Dumbbell } from 'lucide-react';
 
 export default function TodayPage() {
-  const { user, profile } = useAuth();
+  const { user, session, profile } = useAuth();
   const [supabase] = useState(() => createClient());
 
   const [currentDateStr] = useState(() => formatDateKey(new Date()));
@@ -114,6 +115,10 @@ export default function TodayPage() {
       const updated = [newLog, ...workouts];
       setWorkouts(updated);
       localStorage.setItem('apex_logged_workouts', JSON.stringify(updated));
+    }
+
+    if (session?.provider_token && (profile?.auto_sync_gcal !== false)) {
+      await createGoogleCalendarEvent(session.provider_token, profile?.selected_calendar_id || 'primary', newLog);
     }
 
     setShowLogModal(false);

@@ -3,15 +3,22 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
-import { Settings, Key, User, Calendar, Cloud, CheckCircle, LogOut, ExternalLink } from 'lucide-react';
+import { fetchUserCalendars } from '@/lib/gcalendar';
+import { Settings, Key, User, Calendar, Cloud, CheckCircle, LogOut, RefreshCw } from 'lucide-react';
 
 export default function SettingsPage() {
-  const { user, profile, signInWithGoogle, signOut, refreshProfile } = useAuth();
+  const { user, session, profile, signInWithGoogle, signOut, refreshProfile } = useAuth();
   const [supabase] = useState(() => createClient());
 
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [openaiApiKey, setOpenaiApiKey] = useState('');
   const [provider, setProvider] = useState('gemini');
+
+  // Google Calendar Integration states
+  const [userCalendars, setUserCalendars] = useState([]);
+  const [selectedCalendarId, setSelectedCalendarId] = useState('primary');
+  const [autoSyncGcal, setAutoSyncGcal] = useState(true);
+  const [loadingCalendars, setLoadingCalendars] = useState(false);
 
   const [goals, setGoals] = useState({
     startWeight: 195,
@@ -29,6 +36,9 @@ export default function SettingsPage() {
       setGeminiApiKey(profile.gemini_api_key || '');
       setOpenaiApiKey(profile.openai_api_key || '');
       setProvider(profile.ai_provider || 'gemini');
+      setSelectedCalendarId(profile.selected_calendar_id || 'primary');
+      setAutoSyncGcal(profile.auto_sync_gcal !== undefined ? profile.auto_sync_gcal : true);
+
       setGoals({
         startWeight: profile.start_weight || 195,
         targetWeight: profile.target_weight || 180,
@@ -40,8 +50,27 @@ export default function SettingsPage() {
     } else {
       const localKey = localStorage.getItem('apex_gemini_api_key');
       if (localKey) setGeminiApiKey(localKey);
+
+      const localCalId = localStorage.getItem('apex_selected_calendar_id');
+      if (localCalId) setSelectedCalendarId(localCalId);
+
+      const localAutoSync = localStorage.getItem('apex_auto_sync_gcal');
+      if (localAutoSync !== null) setAutoSyncGcal(localAutoSync === 'true');
     }
   }, [profile]);
+
+  useEffect(() => {
+    if (session?.provider_token) {
+      loadCalendars(session.provider_token);
+    }
+  }, [session]);
+
+  async function loadCalendars(token) {
+    setLoadingCalendars(true);
+    const cals = await fetchUserCalendars(token);
+    setUserCalendars(cals);
+    setLoadingCalendars(false);
+  }
 
   async function handleSaveSettings() {
     if (user) {
@@ -50,6 +79,8 @@ export default function SettingsPage() {
         gemini_api_key: geminiApiKey,
         openai_api_key: openaiApiKey,
         ai_provider: provider,
+        selected_calendar_id: selectedCalendarId,
+        auto_sync_gcal: autoSyncGcal,
         start_weight: Number(goals.startWeight),
         target_weight: Number(goals.targetWeight),
         current_weight: Number(goals.currentWeight),
@@ -61,6 +92,8 @@ export default function SettingsPage() {
       await refreshProfile();
     } else {
       localStorage.setItem('apex_gemini_api_key', geminiApiKey);
+      localStorage.setItem('apex_selected_calendar_id', selectedCalendarId);
+      localStorage.setItem('apex_auto_sync_gcal', String(autoSyncGcal));
     }
 
     setSaveSuccess(true);
@@ -71,7 +104,7 @@ export default function SettingsPage() {
     <div>
       <div className="card-header" style={{ marginBottom: 20 }}>
         <h2><Settings size={24} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 8 }} /> Settings & Account</h2>
-        <span className="card-description">Manage Supabase Cloud Auth, AI Coach API Keys, and Athletic Goals.</span>
+        <span className="card-description">Manage Supabase Cloud Auth, Google Calendar Sync, AI Coach API Keys, and Athletic Goals.</span>
       </div>
 
       {saveSuccess && (
@@ -95,9 +128,79 @@ export default function SettingsPage() {
           </div>
         ) : (
           <div>
-            <p className="card-description">Sign in with your Google account to sync workout logs, soreness data, and trophies across all devices via Supabase.</p>
+            <p className="card-description">Sign in with your Google account to sync workout logs, soreness data, and your Google Calendar events across all devices.</p>
             <button className="btn btn-primary btn-block" onClick={signInWithGoogle}>
               Sign In with Google
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Google Calendar Sync Settings */}
+      <div className="dashboard-card">
+        <div className="card-header">
+          <h3><Calendar size={18} style={{ display: 'inline', marginRight: 6 }} /> Google Calendar Sync</h3>
+          <span className="card-description">Select which Google Calendar to sync workouts to and fetch events from.</span>
+        </div>
+
+        {user ? (
+          <div>
+            <div className="form-group">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label className="form-label" style={{ marginBottom: 0 }}>Target Google Calendar</label>
+                {session?.provider_token && (
+                  <button
+                    className="btn btn-secondary"
+                    style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                    onClick={() => loadCalendars(session.provider_token)}
+                    disabled={loadingCalendars}
+                  >
+                    <RefreshCw size={12} style={{ marginRight: 4, display: 'inline' }} />
+                    {loadingCalendars ? 'Loading...' : 'Refresh Calendars'}
+                  </button>
+                )}
+              </div>
+
+              <select
+                className="form-select"
+                value={selectedCalendarId}
+                onChange={(e) => setSelectedCalendarId(e.target.value)}
+              >
+                <option value="primary">Primary Google Calendar</option>
+                {userCalendars.map((cal) => (
+                  <option key={cal.id} value={cal.id}>
+                    {cal.summary} {cal.primary ? '(Primary)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>
+              <div>
+                <label className="form-label" style={{ marginBottom: 2 }}>Auto-Sync Logged Workouts</label>
+                <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                  Automatically post events to Google Calendar when logging or scheduling workouts.
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={autoSyncGcal}
+                onChange={(e) => setAutoSyncGcal(e.target.checked)}
+                style={{ width: 20, height: 20, cursor: 'pointer', accentColor: 'var(--color-accent)' }}
+              />
+            </div>
+
+            <button className="btn btn-primary btn-block" onClick={handleSaveSettings} style={{ marginTop: 12 }}>
+              <CheckCircle size={16} /> Save Calendar Settings
+            </button>
+          </div>
+        ) : (
+          <div>
+            <p className="card-description" style={{ color: 'var(--color-warning)' }}>
+              ⚠️ You must be signed in with Google to enable calendar syncing.
+            </p>
+            <button className="btn btn-primary btn-block" onClick={signInWithGoogle}>
+              Sign In with Google to Connect Calendar
             </button>
           </div>
         )}
@@ -107,7 +210,7 @@ export default function SettingsPage() {
       <div className="dashboard-card">
         <div className="card-header">
           <h3><Key size={18} style={{ display: 'inline', marginRight: 6 }} /> AI Coach API Key</h3>
-          <span className="card-description">API keys are securely passed to Vercel Serverless proxy functions and never exposed to client browsers.</span>
+          <span className="card-description">API keys are securely passed to Vercel Serverless proxy functions.</span>
         </div>
 
         <div className="form-group">
@@ -132,9 +235,6 @@ export default function SettingsPage() {
               value={geminiApiKey}
               onChange={(e) => setGeminiApiKey(e.target.value)}
             />
-            <small style={{ color: 'var(--color-text-secondary)', display: 'block', marginTop: 4 }}>
-              Get a free API key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)' }}>Google AI Studio ↗</a>
-            </small>
           </div>
         ) : (
           <div className="form-group">

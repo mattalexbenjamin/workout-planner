@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Dumbbell, Calendar, Bot, Trophy, BarChart3, Settings } from 'lucide-react';
+import { Dumbbell, Calendar, Bot, Trophy, BarChart3, Settings, Flame } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 
 export function Header() {
@@ -38,7 +38,8 @@ export function BottomNav() {
   const pathname = usePathname();
 
   const navItems = [
-    { href: '/', label: 'Today', icon: Calendar },
+    { href: '/', label: 'Today', icon: Flame },
+    { href: '/calendar', label: 'Calendar', icon: Calendar },
     { href: '/workouts', label: 'Workouts', icon: Dumbbell },
     { href: '/ai', label: 'AI Coach', icon: Bot },
     { href: '/analytics', label: 'Analytics', icon: BarChart3 },
