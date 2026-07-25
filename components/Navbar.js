@@ -13,8 +13,8 @@ export function Header() {
     <header className="app-header">
       <div className="header-container">
         <div className="brand">
-          <span className="brand-title">APEX</span>
-          <span className="brand-subtitle">SUMMER '26 ATHLETICS</span>
+          <span className="brand-title">NEXUS</span>
+          <span className="brand-subtitle">LIFE COMMAND CENTER</span>
         </div>
         <div>
           {user ? (

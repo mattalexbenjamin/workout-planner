@@ -3,8 +3,8 @@ import { AuthProvider } from '@/components/AuthProvider';
 import { Header, BottomNav } from '@/components/Navbar';
 
 export const metadata = {
-  title: "APEX Summer '26 | Athletic Recommender & PWA Tracker",
-  description: "Adaptive, mobile-first PWA training app for sand volleyball, flag football, weightlifting, and running.",
+  title: "NEXUS | Life Command Center & Daily OS",
+  description: "Personal life command center for fitness, athletic tracking, habits, productivity, and analytics.",
   manifest: "/manifest.json",
 };
 

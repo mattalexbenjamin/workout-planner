@@ -1,12 +1,23 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { ATHLETIC_WORKOUTS, getExerciseGuideUrl } from '@/lib/workouts-catalog';
-import { getRecommendation, formatDateKey, calculateSoreness } from '@/lib/recommender';
+import { getRecommendation, formatDateKey } from '@/lib/recommender';
 import { createGoogleCalendarEvent, getSavedCalendarId } from '@/lib/gcalendar';
-import { Sparkles, Calendar as CalendarIcon, Activity, PlusCircle, CheckCircle, Flame, Dumbbell } from 'lucide-react';
+import { 
+  Sparkles, Calendar as CalendarIcon, Activity, PlusCircle, CheckCircle, 
+  Flame, Dumbbell, Trash2, Check, Target, Zap, ChevronDown, ChevronUp
+} from 'lucide-react';
+
+const DEFAULT_HABITS = [
+  { id: 'hydration', name: '💧 Hydration (3L+)' },
+  { id: 'sleep', name: '😴 8h Quality Sleep' },
+  { id: 'deep_work', name: '🧠 Deep Work Session' },
+  { id: 'nutrition', name: '🥗 Clean Nutrition & Protein' },
+  { id: 'mobility', name: '🧘 Mobility & Stretching' },
+];
 
 export default function TodayPage() {
   const { user, session, profile } = useAuth();
@@ -14,10 +25,20 @@ export default function TodayPage() {
 
   const [currentDateStr] = useState(() => formatDateKey(new Date()));
   const [soreness, setSoreness] = useState({ legs: 1, shoulders: 1, core: 1, fatigue: 1 });
+  const [showSliders, setShowSliders] = useState(false);
   const [workouts, setWorkouts] = useState([]);
   const [recommendation, setRecommendation] = useState(null);
   const [showLogModal, setShowLogModal] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState(null);
+
+  // Daily Focus Directive
+  const [dailyFocus, setDailyFocus] = useState('');
+  const [isFocusSaved, setIsFocusSaved] = useState(false);
+
+  // Habits & Matrix State
+  const [habits, setHabits] = useState(DEFAULT_HABITS);
+  const [newHabitName, setNewHabitName] = useState('');
+  const [habitLogs, setHabitLogs] = useState({}); // { `${habitId}_${dateStr}`: true/false }
 
   // Custom log form state
   const [customLog, setCustomLog] = useState({
@@ -27,13 +48,38 @@ export default function TodayPage() {
     notes: ''
   });
 
+  const todayColRef = useRef(null);
+
+  // Generate 7-day date range centered around Today
+  const datesWindow = React.useMemo(() => {
+    const list = [];
+    const today = new Date();
+    for (let i = -3; i <= 3; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() + i);
+      const dateKey = formatDateKey(d);
+      const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short' });
+      const numLabel = d.getDate();
+      const isToday = dateKey === currentDateStr;
+      list.push({ dateKey, dayLabel, numLabel, isToday });
+    }
+    return list;
+  }, [currentDateStr]);
+
   useEffect(() => {
     fetchUserData();
   }, [user]);
 
+  // Center scroll onto Today's column on mount
+  useEffect(() => {
+    if (todayColRef.current) {
+      todayColRef.current.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }, [datesWindow]);
+
   async function fetchUserData() {
+    // 1. Fetch Soreness
     if (user) {
-      // Fetch today's soreness log
       const { data: sData } = await supabase
         .from('soreness_logs')
         .select('*')
@@ -50,7 +96,7 @@ export default function TodayPage() {
         });
       }
 
-      // Fetch logged workouts
+      // 2. Fetch Workouts
       const { data: wData } = await supabase
         .from('workout_logs')
         .select('*')
@@ -58,13 +104,41 @@ export default function TodayPage() {
         .order('date', { ascending: false });
 
       if (wData) setWorkouts(wData);
+
+      // 3. Fetch Habits & Habit Logs
+      const localCustomHabits = localStorage.getItem(`nexus_custom_habits_${user.id}`);
+      if (localCustomHabits) {
+        try { setHabits(JSON.parse(localCustomHabits)); } catch (e) {}
+      }
+
+      const localLogs = localStorage.getItem(`nexus_habit_logs_${user.id}`);
+      if (localLogs) {
+        try { setHabitLogs(JSON.parse(localLogs)); } catch (e) {}
+      }
+
+      const localFocus = localStorage.getItem(`nexus_daily_focus_${user.id}_${currentDateStr}`);
+      if (localFocus) setDailyFocus(localFocus);
+
     } else {
-      // LocalStorage fallback
-      const localSoreness = localStorage.getItem('apex_today_soreness');
+      // LocalStorage fallbacks
+      const localSoreness = localStorage.getItem('nexus_today_soreness');
       if (localSoreness) setSoreness(JSON.parse(localSoreness));
 
-      const localWorkouts = localStorage.getItem('apex_logged_workouts');
+      const localWorkouts = localStorage.getItem('nexus_logged_workouts');
       if (localWorkouts) setWorkouts(JSON.parse(localWorkouts));
+
+      const localHabits = localStorage.getItem('nexus_custom_habits_guest');
+      if (localHabits) {
+        try { setHabits(JSON.parse(localHabits)); } catch (e) {}
+      }
+
+      const localLogs = localStorage.getItem('nexus_habit_logs_guest');
+      if (localLogs) {
+        try { setHabitLogs(JSON.parse(localLogs)); } catch (e) {}
+      }
+
+      const localFocus = localStorage.getItem(`nexus_daily_focus_guest_${currentDateStr}`);
+      if (localFocus) setDailyFocus(localFocus);
     }
   }
 
@@ -92,9 +166,92 @@ export default function TodayPage() {
           core: updated.core
         }, { onConflict: 'user_id, date' });
     } else {
-      localStorage.setItem('apex_today_soreness', JSON.stringify(updated));
+      localStorage.setItem('nexus_today_soreness', JSON.stringify(updated));
     }
   }
+
+  // Habits Management
+  function handleAddHabit(e) {
+    e.preventDefault();
+    if (!newHabitName.trim()) return;
+
+    const newHabit = {
+      id: `custom_${Date.now()}`,
+      name: newHabitName.trim()
+    };
+
+    const updated = [...habits, newHabit];
+    setHabits(updated);
+    setNewHabitName('');
+
+    const storageKey = user ? `nexus_custom_habits_${user.id}` : 'nexus_custom_habits_guest';
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+  }
+
+  function handleDeleteHabit(habitId) {
+    const updated = habits.filter(h => h.id !== habitId);
+    setHabits(updated);
+
+    const storageKey = user ? `nexus_custom_habits_${user.id}` : 'nexus_custom_habits_guest';
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+  }
+
+  function toggleHabitCheck(habitId, dateKey) {
+    const key = `${habitId}_${dateKey}`;
+    const nextLogs = { ...habitLogs, [key]: !habitLogs[key] };
+    setHabitLogs(nextLogs);
+
+    const storageKey = user ? `nexus_habit_logs_${user.id}` : 'nexus_habit_logs_guest';
+    localStorage.setItem(storageKey, JSON.stringify(nextLogs));
+  }
+
+  function handleSaveDailyFocus() {
+    const storageKey = user ? `nexus_daily_focus_${user.id}_${currentDateStr}` : `nexus_daily_focus_guest_${currentDateStr}`;
+    localStorage.setItem(storageKey, dailyFocus);
+    setIsFocusSaved(true);
+    setTimeout(() => setIsFocusSaved(false), 2000);
+  }
+
+  // Calculate Streak & Stats per habit
+  function getHabitStats(habitId) {
+    let streak = 0;
+    let totalCompleted = 0;
+
+    // Calculate total completed in all logged dates
+    Object.keys(habitLogs).forEach(key => {
+      if (key.startsWith(`${habitId}_`) && habitLogs[key]) {
+        totalCompleted++;
+      }
+    });
+
+    // Calculate streak counting back from today
+    const today = new Date();
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateKey = formatDateKey(d);
+      if (habitLogs[`${habitId}_${dateKey}`]) {
+        streak++;
+      } else if (i > 0) {
+        break; // Streak broken
+      }
+    }
+
+    const completionRate = Math.min(100, Math.round((totalCompleted / 7) * 100));
+    return { streak, totalCompleted, completionRate };
+  }
+
+  // Calculate Readiness Score (0-100%)
+  const readinessScore = React.useMemo(() => {
+    const totalSoreness = soreness.fatigue + soreness.legs + soreness.shoulders + soreness.core;
+    const physicalScore = Math.max(0, 100 - (totalSoreness - 4) * 6);
+
+    // Habits score for today
+    const todayCompletedCount = habits.filter(h => habitLogs[`${h.id}_${currentDateStr}`]).length;
+    const habitScore = habits.length > 0 ? (todayCompletedCount / habits.length) * 100 : 100;
+
+    return Math.round((physicalScore * 0.6) + (habitScore * 0.4));
+  }, [soreness, habits, habitLogs, currentDateStr]);
 
   async function handleSaveWorkoutLog(workoutToSave) {
     const newLog = {
@@ -114,7 +271,7 @@ export default function TodayPage() {
     } else {
       const updated = [newLog, ...workouts];
       setWorkouts(updated);
-      localStorage.setItem('apex_logged_workouts', JSON.stringify(updated));
+      localStorage.setItem('nexus_logged_workouts', JSON.stringify(updated));
     }
 
     if (session?.provider_token && (profile?.auto_sync_gcal !== false)) {
@@ -128,73 +285,154 @@ export default function TodayPage() {
 
   return (
     <div>
-      {/* Soreness Sliders Card */}
-      <div className="dashboard-card">
-        <div className="card-header">
-          <h3>Daily Soreness & Readiness</h3>
-          <span className="card-description">Adjust sliders to calculate optimal daily recommendations.</span>
-        </div>
-
-        <div className="slider-group">
-          <div className="slider-header">
-            <span>Overall Fatigue</span>
-            <span className="text-orange">{soreness.fatigue}/5</span>
+      {/* 1. NEXUS Readiness & Energy Score Banner */}
+      <div className="nexus-banner">
+        <div className="nexus-banner-glow"></div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#00F0FF', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
+              NEXUS COMMAND CENTER • {currentDateStr}
+            </span>
+            <h2 style={{ fontSize: '1.5rem', marginTop: 4, color: '#FFFFFF' }}>Daily Life Directive</h2>
+            <p style={{ fontSize: '0.85rem', color: '#94A3B8', marginTop: 2 }}>
+              {readinessScore >= 80 ? '🔥 High Readiness — Optimal day for heavy loading & peak performance.' :
+               readinessScore >= 60 ? '⚡ Moderate Readiness — Steady output & focused task execution.' :
+               '🛡️ Recovery Mode — Prioritize mobility, sleep, and active rest.'}
+            </p>
           </div>
-          <input
-            type="range" min="1" max="5" step="1"
-            className="slider-input"
-            value={soreness.fatigue}
-            onChange={(e) => handleSorenessChange('fatigue', e.target.value)}
-          />
-        </div>
 
-        <div className="slider-group">
-          <div className="slider-header">
-            <span>Legs & Lower Body</span>
-            <span className="text-orange">{soreness.legs}/5</span>
+          <div className="readiness-ring-container">
+            <div className="readiness-score-box" style={{ '--score-pct': readinessScore }}>
+              <div className="readiness-score-inner">
+                <span className="readiness-val">{readinessScore}%</span>
+                <span className="readiness-lbl">READINESS</span>
+              </div>
+            </div>
           </div>
-          <input
-            type="range" min="1" max="5" step="1"
-            className="slider-input"
-            value={soreness.legs}
-            onChange={(e) => handleSorenessChange('legs', e.target.value)}
-          />
-        </div>
-
-        <div className="slider-group">
-          <div className="slider-header">
-            <span>Shoulders & Arms</span>
-            <span className="text-orange">{soreness.shoulders}/5</span>
-          </div>
-          <input
-            type="range" min="1" max="5" step="1"
-            className="slider-input"
-            value={soreness.shoulders}
-            onChange={(e) => handleSorenessChange('shoulders', e.target.value)}
-          />
-        </div>
-
-        <div className="slider-group">
-          <div className="slider-header">
-            <span>Core & Back</span>
-            <span className="text-orange">{soreness.core}/5</span>
-          </div>
-          <input
-            type="range" min="1" max="5" step="1"
-            className="slider-input"
-            value={soreness.core}
-            onChange={(e) => handleSorenessChange('core', e.target.value)}
-          />
         </div>
       </div>
 
-      {/* Recommended Workout Card */}
+      {/* 2. Daily Focus & Priority Directive Card */}
+      <div className="dashboard-card" style={{ marginBottom: 20 }}>
+        <div className="card-header" style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Target size={18} color="var(--color-accent)" />
+            <h3 style={{ fontSize: '1rem' }}>#1 Priority Directive For Today</h3>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="e.g. Complete leg session, 3L water, & finish deep work project..."
+            value={dailyFocus}
+            onChange={(e) => setDailyFocus(e.target.value)}
+          />
+          <button className="btn btn-primary" onClick={handleSaveDailyFocus} style={{ whiteSpace: 'nowrap' }}>
+            {isFocusSaved ? 'Saved! ✓' : 'Set Directive'}
+          </button>
+        </div>
+      </div>
+
+      {/* 3. Horizontal Matrix Habit & Routine Tracker */}
+      <div className="habit-matrix-card">
+        <div className="card-header" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h3>Habit & Routine Matrix</h3>
+            <span className="card-description">Track daily routines horizontally across dates with live streak metrics.</span>
+          </div>
+        </div>
+
+        {/* Matrix Scrollable Container */}
+        <div className="habit-matrix-wrapper">
+          <table className="habit-table">
+            <thead>
+              <tr>
+                <th className="sticky-col-left" style={{ minWidth: 200 }}>Habit / Routine</th>
+                {datesWindow.map(d => (
+                  <th
+                    key={d.dateKey}
+                    ref={d.isToday ? todayColRef : null}
+                    className={`date-col-header ${d.isToday ? 'is-today' : ''}`}
+                  >
+                    <div>{d.dayLabel}</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 900 }}>{d.numLabel}</div>
+                  </th>
+                ))}
+                <th className="sticky-col-right" style={{ minWidth: 140, textAlign: 'center' }}>Stats & Streaks</th>
+              </tr>
+            </thead>
+            <tbody>
+              {habits.map(habit => {
+                const stats = getHabitStats(habit.id);
+                return (
+                  <tr key={habit.id} className="habit-row">
+                    <td className="sticky-col-left">
+                      <div className="habit-name-box">
+                        <button
+                          className="btn-delete-habit"
+                          title="Delete Habit"
+                          onClick={() => handleDeleteHabit(habit.id)}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                        <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>{habit.name}</span>
+                      </div>
+                    </td>
+                    {datesWindow.map(d => {
+                      const isChecked = Boolean(habitLogs[`${habit.id}_${d.dateKey}`]);
+                      return (
+                        <td key={d.dateKey} className="habit-cell-check">
+                          <button
+                            className={`habit-check-btn ${isChecked ? 'checked' : ''}`}
+                            onClick={() => toggleHabitCheck(habit.id, d.dateKey)}
+                            title={`${habit.name} on ${d.dateKey}`}
+                          >
+                            <Check size={16} strokeWidth={3} />
+                          </button>
+                        </td>
+                      );
+                    })}
+                    <td className="sticky-col-right" style={{ textAlign: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                        <span className="streak-badge" title="Current Active Streak">
+                          🔥 {stats.streak}d
+                        </span>
+                        <span className="completion-rate" title="Total Times Logged">
+                          📈 {stats.totalCompleted}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Add New Habit Form */}
+        <form onSubmit={handleAddHabit} style={{ marginTop: 14, display: 'flex', gap: 10 }}>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="+ Type a new custom habit or routine..."
+            value={newHabitName}
+            onChange={(e) => setNewHabitName(e.target.value)}
+          />
+          <button type="submit" className="btn btn-secondary" style={{ whiteSpace: 'nowrap' }}>
+            <PlusCircle size={16} style={{ marginRight: 4 }} />
+            Add Habit
+          </button>
+        </form>
+      </div>
+
+      {/* 4. NEXUS Recommended Session Card */}
       {recommendation && (
         <div className="dashboard-card highlighted">
           <div className="card-header">
             <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-accent)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-              <Sparkles size={14} style={{ display: 'inline', marginRight: 4 }} />
-              APEX Recommended Session
+              <Zap size={14} style={{ display: 'inline', marginRight: 4 }} />
+              NEXUS Adaptive Recommended Session
             </span>
             <h3>{recommendation.name}</h3>
           </div>
@@ -228,7 +466,7 @@ export default function TodayPage() {
                   onClick={() => handleSaveWorkoutLog(selectedWorkout)}
                 >
                   <CheckCircle size={18} />
-                  Complete Recommended Workout
+                  Complete Prescribed Session
                 </button>
               </div>
             </div>
@@ -236,11 +474,84 @@ export default function TodayPage() {
         </div>
       )}
 
+      {/* 5. Physical Soreness & Readiness Sliders (Collapsible) */}
+      <div className="dashboard-card">
+        <div 
+          className="card-header" 
+          onClick={() => setShowSliders(!showSliders)}
+          style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        >
+          <div>
+            <h3>Physical Readiness & Muscle Soreness</h3>
+            <span className="card-description">Fine-tune body part soreness sliders to adapt training load.</span>
+          </div>
+          <button className="btn-secondary" style={{ padding: '6px 10px', borderRadius: '50%' }}>
+            {showSliders ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </button>
+        </div>
+
+        {showSliders && (
+          <div style={{ marginTop: 16 }}>
+            <div className="slider-group">
+              <div className="slider-header">
+                <span>Overall Fatigue</span>
+                <span className="text-orange">{soreness.fatigue}/5</span>
+              </div>
+              <input
+                type="range" min="1" max="5" step="1"
+                className="slider-input"
+                value={soreness.fatigue}
+                onChange={(e) => handleSorenessChange('fatigue', e.target.value)}
+              />
+            </div>
+
+            <div className="slider-group">
+              <div className="slider-header">
+                <span>Legs & Lower Body</span>
+                <span className="text-orange">{soreness.legs}/5</span>
+              </div>
+              <input
+                type="range" min="1" max="5" step="1"
+                className="slider-input"
+                value={soreness.legs}
+                onChange={(e) => handleSorenessChange('legs', e.target.value)}
+              />
+            </div>
+
+            <div className="slider-group">
+              <div className="slider-header">
+                <span>Shoulders & Arms</span>
+                <span className="text-orange">{soreness.shoulders}/5</span>
+              </div>
+              <input
+                type="range" min="1" max="5" step="1"
+                className="slider-input"
+                value={soreness.shoulders}
+                onChange={(e) => handleSorenessChange('shoulders', e.target.value)}
+              />
+            </div>
+
+            <div className="slider-group">
+              <div className="slider-header">
+                <span>Core & Back</span>
+                <span className="text-orange">{soreness.core}/5</span>
+              </div>
+              <input
+                type="range" min="1" max="5" step="1"
+                className="slider-input"
+                value={soreness.core}
+                onChange={(e) => handleSorenessChange('core', e.target.value)}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Quick Actions */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
         <button className="btn btn-secondary btn-block" onClick={() => setShowLogModal(true)}>
           <PlusCircle size={18} />
-          Log Custom Sport / Lift
+          Log Custom Activity / Sport
         </button>
       </div>
 

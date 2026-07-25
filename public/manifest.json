@@ -1,11 +1,11 @@
 {
-  "name": "APEX Summer '26 | Athletic Tracker",
-  "short_name": "APEX",
-  "description": "Adaptive athletic recommender & PWA workout tracker",
+  "name": "NEXUS | Life Command Center",
+  "short_name": "NEXUS",
+  "description": "Personal Life Command Center & PWA daily tracker",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0F172A",
-  "theme_color": "#0F172A",
+  "background_color": "#F8FAFC",
+  "theme_color": "#0052FF",
   "icons": [
     {
       "src": "/icons/icon-192.png",

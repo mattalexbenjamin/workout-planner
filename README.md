@@ -1,8 +1,8 @@
-# APEX Summer '26 | Athletic Recommender & PWA Tracker
+# NEXUS | Life Command Center & Daily OS
 
 An adaptive, mobile-first Progressive Web Application (PWA) built with **Next.js (App Router)**, **Supabase Auth & Postgres DB**, and hosted on **Vercel Free Tier**. 
 
-Designed to prepare athletes for sand volleyball, flag football, weightlifting, and running during the summer of 2026.
+Designed as a personal life command center for fitness, athletic tracking, habits, productivity, and life OS analytics.
 
 ---
 

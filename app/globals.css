@@ -1071,5 +1071,229 @@ h1, h2, h3, h4, h5, h6 {
   opacity: 1;
 }
 
+/* NEXUS COMMAND CENTER DASHBOARD & HABIT MATRIX */
+
+.nexus-banner {
+  background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+  color: #FFFFFF;
+  border-radius: var(--border-radius-md);
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 10px 30px rgba(0, 82, 255, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+.nexus-banner-glow {
+  position: absolute;
+  top: -50px;
+  right: -50px;
+  width: 150px;
+  height: 150px;
+  background: radial-gradient(circle, rgba(0, 82, 255, 0.35) 0%, rgba(0, 240, 255, 0) 70%);
+  pointer-events: none;
+}
+
+.readiness-ring-container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.readiness-score-box {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: conic-gradient(var(--color-accent) calc(var(--score-pct) * 1%), rgba(255, 255, 255, 0.15) 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.readiness-score-inner {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background-color: #0F172A;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.readiness-val {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #FFFFFF;
+  line-height: 1;
+}
+
+.readiness-lbl {
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  letter-spacing: 0.5px;
+}
+
+/* Habit Matrix Container */
+.habit-matrix-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.habit-matrix-wrapper {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 420px;
+  position: relative;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-surface);
+  scrollbar-width: thin;
+}
+
+.habit-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 680px;
+}
+
+.habit-table th, .habit-table td {
+  padding: 10px 12px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.habit-table th {
+  background-color: var(--bg-surface-elevated);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.sticky-col-left {
+  position: sticky;
+  left: 0;
+  background-color: var(--bg-surface);
+  z-index: 5;
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.04);
+}
+
+th.sticky-col-left {
+  background-color: var(--bg-surface-elevated);
+  z-index: 15;
+}
+
+.sticky-col-right {
+  position: sticky;
+  right: 0;
+  background-color: var(--bg-surface);
+  z-index: 5;
+  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.04);
+}
+
+th.sticky-col-right {
+  background-color: var(--bg-surface-elevated);
+  z-index: 15;
+}
+
+.date-col-header {
+  text-align: center;
+  min-width: 48px;
+}
+
+.date-col-header.is-today {
+  background-color: var(--color-accent-dim) !important;
+  color: var(--color-accent);
+  border-radius: 6px;
+}
+
+.habit-cell-check {
+  text-align: center;
+  cursor: pointer;
+}
+
+.habit-check-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 2px solid var(--border-color);
+  background-color: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: transparent;
+}
+
+.habit-check-btn.checked {
+  background-color: var(--color-success);
+  border-color: var(--color-success);
+  color: #FFFFFF;
+}
+
+.habit-check-btn:hover {
+  transform: scale(1.1);
+}
+
+.habit-row:hover td {
+  background-color: rgba(241, 245, 249, 0.5);
+}
+
+.habit-name-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 170px;
+}
+
+.btn-delete-habit {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 0.6;
+  transition: all 0.15s ease;
+}
+
+.btn-delete-habit:hover {
+  color: var(--color-danger);
+  opacity: 1;
+  background-color: var(--color-danger-dim);
+}
+
+.streak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  background-color: rgba(217, 119, 6, 0.12);
+  color: #D97706;
+}
+
+.completion-rate {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
 
 
