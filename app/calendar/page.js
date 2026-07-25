@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { ATHLETIC_WORKOUTS, getExerciseGuideUrl } from '@/lib/workouts-catalog';
-import { fetchCalendarEvents, createGoogleCalendarEvent, deleteGoogleCalendarEvent, getSavedCalendarId } from '@/lib/gcalendar';
+import { fetchCalendarEvents, createGoogleCalendarEvent, deleteGoogleCalendarEvent, updateGoogleCalendarEventDuration, getSavedCalendarId } from '@/lib/gcalendar';
 import { Calendar as CalendarIcon, PlusCircle, CheckCircle, Clock, ExternalLink, CalendarDays, Dumbbell, ShieldAlert, Trash2, Flame, Sparkles, ChevronLeft, ChevronRight, RefreshCw, Activity, Moon, Tag } from 'lucide-react';
 
 export default function CalendarFeedPage() {
@@ -21,6 +21,7 @@ export default function CalendarFeedPage() {
   // Modal States
   const [activeDetailEvent, setActiveDetailEvent] = useState(null);
   const [categorySaved, setCategorySaved] = useState(false);
+  const [durationSaved, setDurationSaved] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleDate, setScheduleDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedCatalogId, setSelectedCatalogId] = useState(ATHLETIC_WORKOUTS[0].id);
@@ -250,6 +251,55 @@ export default function CalendarFeedPage() {
 
     setCategorySaved(true);
     setTimeout(() => setCategorySaved(false), 2000);
+  }
+
+  // Handle auto-updating event duration for Google Calendar events & local logs
+  async function handleDurationChange(newDuration) {
+    if (!activeDetailEvent) return;
+
+    const numDuration = Number(newDuration);
+    if (!numDuration || numDuration <= 0) return;
+
+    const updatedEvent = { ...activeDetailEvent, duration: numDuration };
+    setActiveDetailEvent(updatedEvent);
+
+    if (activeDetailEvent.isGcal) {
+      const activeToken = session?.provider_token || (typeof window !== 'undefined' ? localStorage.getItem('nexus_provider_token') : null);
+      if (activeToken && activeDetailEvent.gcalId) {
+        const targetCalId = getSavedCalendarId(profile);
+        const success = await updateGoogleCalendarEventDuration(
+          activeToken,
+          targetCalId,
+          activeDetailEvent.gcalId,
+          numDuration,
+          activeDetailEvent.startDateTime,
+          activeDetailEvent.date
+        );
+        if (success) {
+          setGcalEvents((prev) =>
+            prev.map((item) => ((item.gcalId || item.id) === activeDetailEvent.gcalId ? { ...item, duration: numDuration } : item))
+          );
+        }
+      }
+    } else if (activeDetailEvent.id) {
+      if (user) {
+        await supabase
+          .from('workout_logs')
+          .update({ duration: numDuration })
+          .eq('id', activeDetailEvent.id);
+      } else {
+        const localLogs = JSON.parse(localStorage.getItem('apex_logged_workouts') || '[]');
+        const updatedLogs = localLogs.map((l) => (l.id === activeDetailEvent.id ? { ...l, duration: numDuration } : l));
+        localStorage.setItem('apex_logged_workouts', JSON.stringify(updatedLogs));
+      }
+
+      setWorkoutLogs((prev) =>
+        prev.map((item) => (item.id === activeDetailEvent.id ? { ...item, duration: numDuration } : item))
+      );
+    }
+
+    setDurationSaved(true);
+    setTimeout(() => setDurationSaved(false), 2000);
   }
 
   const todayStr = new Date().toISOString().split('T')[0];
@@ -486,6 +536,52 @@ export default function CalendarFeedPage() {
                 <option value="recovery">🧘 Recovery / Mobility</option>
                 <option value="other">⚡ Other Activity</option>
               </select>
+            </div>
+
+            {/* Session Duration Selector & Custom Minute Input */}
+            <div className="form-group" style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 4, margin: 0 }}>
+                  <Clock size={14} /> Session Duration (Minutes)
+                </label>
+                {durationSaved && (
+                  <span className="badge-tag green" style={{ fontSize: '0.7rem', padding: '2px 8px' }}>
+                    Updated on Google Cal ✓
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <select
+                  className="form-select"
+                  value={activeDetailEvent.duration || 45}
+                  onChange={(e) => handleDurationChange(e.target.value)}
+                  style={{ flex: 1 }}
+                >
+                  <option value={15}>15 Minutes</option>
+                  <option value={30}>30 Minutes</option>
+                  <option value={45}>45 Minutes</option>
+                  <option value={60}>60 Minutes (1 hr)</option>
+                  <option value={75}>75 Minutes (1 hr 15m)</option>
+                  <option value={90}>90 Minutes (1.5 hrs)</option>
+                  <option value={120}>120 Minutes (2 hrs)</option>
+                  {!([15, 30, 45, 60, 75, 90, 120].includes(Number(activeDetailEvent.duration))) && (
+                    <option value={activeDetailEvent.duration}>
+                      {activeDetailEvent.duration} Minutes (Custom)
+                    </option>
+                  )}
+                </select>
+
+                <input
+                  type="number"
+                  className="form-input"
+                  style={{ width: 90 }}
+                  placeholder="Mins"
+                  value={activeDetailEvent.duration || ''}
+                  onChange={(e) => handleDurationChange(e.target.value)}
+                  min="1"
+                  max="720"
+                />
+              </div>
             </div>
 
             {activeDetailEvent.notes && (
