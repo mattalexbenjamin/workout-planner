@@ -5,13 +5,15 @@ import { useAuth } from '@/components/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { ATHLETIC_WORKOUTS, getExerciseGuideUrl } from '@/lib/workouts-catalog';
 import { fetchCalendarEvents, createGoogleCalendarEvent, getSavedCalendarId } from '@/lib/gcalendar';
-import { Calendar as CalendarIcon, PlusCircle, CheckCircle, Clock, ExternalLink, CalendarDays, Dumbbell, ShieldAlert, Trash2, Flame, Sparkles, Filter, ChevronRight, Activity } from 'lucide-react';
+import { Calendar as CalendarIcon, PlusCircle, CheckCircle, Clock, ExternalLink, CalendarDays, Dumbbell, ShieldAlert, Trash2, Flame, Sparkles, ChevronLeft, ChevronRight, RefreshCw, Activity, Moon } from 'lucide-react';
 
 export default function CalendarFeedPage() {
   const { user, session, profile, signInWithGoogle } = useAuth();
   const [supabase] = useState(() => createClient());
 
   const [selectedFilter, setSelectedFilter] = useState('all'); // 'all' | 'completed' | 'planned' | 'gcal'
+  const [windowOffset, setWindowOffset] = useState(0); // 0 = current 10 days (-7 to +2), -1 = 10 days older, +1 = 10 days newer
+
   const [workoutLogs, setWorkoutLogs] = useState([]);
   const [gcalEvents, setGcalEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +36,7 @@ export default function CalendarFeedPage() {
     if (user) {
       loadCalendarData();
     }
-  }, [user, session]);
+  }, [user, session, windowOffset]);
 
   async function loadCalendarData() {
     setLoading(true);
@@ -55,9 +57,9 @@ export default function CalendarFeedPage() {
 
     // 2. Fetch Google Calendar events if session has provider_token
     if (session?.provider_token) {
-      const now = new Date();
-      const timeMin = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
-      const timeMax = new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString();
+      const windowDates = get10DayWindowDates(windowOffset);
+      const timeMin = new Date(`${windowDates[0]}T00:00:00Z`).toISOString();
+      const timeMax = new Date(`${windowDates[9]}T23:59:59Z`).toISOString();
 
       const targetCalId = getSavedCalendarId(profile);
 
@@ -71,6 +73,34 @@ export default function CalendarFeedPage() {
     }
 
     setLoading(false);
+  }
+
+  // Calculate array of 10 contiguous YYYY-MM-DD date strings for the current windowOffset
+  function get10DayWindowDates(offset) {
+    const dates = [];
+    const today = new Date();
+
+    // Base start date: 7 days before today + (offset * 10 days)
+    const startDate = new Date();
+    startDate.setDate(today.getDate() - 7 + offset * 10);
+
+    for (let i = 0; i < 10; i++) {
+      const d = new Date(startDate);
+      d.setDate(startDate.getDate() + i);
+      dates.push(d.toISOString().split('T')[0]);
+    }
+    return dates;
+  }
+
+  // Format date range label (e.g. "Jul 18 – Jul 27, 2026")
+  function getDateRangeLabel(dates) {
+    if (!dates || dates.length === 0) return '';
+    const d1 = new Date(`${dates[0]}T00:00:00`);
+    const d2 = new Date(`${dates[dates.length - 1]}T00:00:00`);
+
+    const f1 = d1.toLocaleDateString('default', { month: 'short', day: 'numeric' });
+    const f2 = d2.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `${f1} – ${f2}`;
   }
 
   // Handle scheduling a new workout for a future/chosen date
@@ -142,9 +172,16 @@ export default function CalendarFeedPage() {
     loadCalendarData();
   }
 
-  // Combine and sort events chronologically
-  function getChronologicalFeed() {
-    let combined = [...workoutLogs, ...gcalEvents];
+  const todayStr = new Date().toISOString().split('T')[0];
+  const activeWindowDates = get10DayWindowDates(windowOffset);
+  const rangeLabel = getDateRangeLabel(activeWindowDates);
+
+  // Get workout events for a specific date filtered by selectedFilter
+  function getEventsForDate(dateStr) {
+    const internal = workoutLogs.filter((w) => w.date === dateStr);
+    const gcal = gcalEvents.filter((g) => g.date === dateStr);
+
+    let combined = [...internal, ...gcal];
 
     if (selectedFilter === 'completed') {
       combined = combined.filter((e) => e.status !== 'planned' && !e.isGcal);
@@ -154,38 +191,14 @@ export default function CalendarFeedPage() {
       combined = combined.filter((e) => e.isGcal);
     }
 
-    // Deduplicate by ID if any collision
+    // Deduplicate by ID
     const seen = new Set();
-    combined = combined.filter((item) => {
+    return combined.filter((item) => {
       const uid = item.id || `${item.date}_${item.workout_name}`;
       if (seen.has(uid)) return false;
       seen.add(uid);
       return true;
     });
-
-    // Sort by date descending (latest/upcoming first)
-    return combined.sort((a, b) => new Date(b.date) - new Date(a.date));
-  }
-
-  const todayStr = new Date().toISOString().split('T')[0];
-
-  // Group events by Date Sections (Today, Upcoming, Past)
-  function groupFeedBySection(events) {
-    const today = [];
-    const upcoming = [];
-    const past = [];
-
-    events.forEach((evt) => {
-      if (evt.date === todayStr) {
-        today.push(evt);
-      } else if (evt.date > todayStr) {
-        upcoming.push(evt);
-      } else {
-        past.push(evt);
-      }
-    });
-
-    return { today, upcoming, past };
   }
 
   // If user is not logged in with Google, render mandatory Sign In screen
@@ -194,7 +207,7 @@ export default function CalendarFeedPage() {
       <div>
         <div className="card-header" style={{ marginBottom: 20 }}>
           <h2><CalendarIcon size={24} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 8 }} /> Timeline Feed</h2>
-          <span className="card-description">Chronological athletic feed of completed, planned, and Google Calendar workouts.</span>
+          <span className="card-description">Chronological 10-day athletic feed of completed, planned, and Google Calendar workouts.</span>
         </div>
 
         <div className="dashboard-card" style={{ textAlign: 'center', padding: '40px 20px' }}>
@@ -211,17 +224,14 @@ export default function CalendarFeedPage() {
     );
   }
 
-  const feedEvents = getChronologicalFeed();
-  const { today, upcoming, past } = groupFeedBySection(feedEvents);
-
   return (
     <div>
       {/* Header & Post Workout Action Bar */}
       <div className="card-header" style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h2><Activity size={24} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 8 }} /> Workout Feed</h2>
-            <span className="card-description">Chronological activity timeline of all past, present, and future sessions.</span>
+            <h2><Activity size={24} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 8 }} /> 10-Day Workout Feed</h2>
+            <span className="card-description">Continuous daily timeline showing workouts and rest days.</span>
           </div>
 
           <button
@@ -237,12 +247,12 @@ export default function CalendarFeedPage() {
       </div>
 
       {/* Filter Pill Group */}
-      <div className="feed-filter-bar" style={{ marginBottom: 20 }}>
+      <div className="feed-filter-bar" style={{ marginBottom: 16 }}>
         <button
           className={`filter-pill ${selectedFilter === 'all' ? 'active' : ''}`}
           onClick={() => setSelectedFilter('all')}
         >
-          All Activity ({feedEvents.length})
+          All Activity
         </button>
         <button
           className={`filter-pill ${selectedFilter === 'completed' ? 'active' : ''}`}
@@ -264,80 +274,89 @@ export default function CalendarFeedPage() {
         </button>
       </div>
 
-      {/* CHRONOLOGICAL FEED CARDS */}
+      {/* TOP PAGINATION BAR */}
+      <PaginationBar
+        rangeLabel={rangeLabel}
+        windowOffset={windowOffset}
+        onPrev={() => setWindowOffset((prev) => prev - 1)}
+        onNext={() => setWindowOffset((prev) => prev + 1)}
+        onReset={() => setWindowOffset(0)}
+      />
+
+      {/* 10-DAY CONTINUOUS FEED */}
       <div className="feed-container">
         {loading ? (
           <div className="dashboard-card" style={{ textAlign: 'center', padding: '30px' }}>
-            <p className="card-description">Loading your chronological workout feed...</p>
-          </div>
-        ) : feedEvents.length === 0 ? (
-          <div className="dashboard-card" style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <CalendarIcon size={36} style={{ color: 'var(--color-text-muted)', marginBottom: 12 }} />
-            <h4>No Workouts Found in Feed</h4>
-            <p className="card-description" style={{ marginTop: 4 }}>
-              Schedule a future session or log a workout to see it in your timeline.
-            </p>
+            <p className="card-description">Loading 10-day workout feed...</p>
           </div>
         ) : (
-          <>
-            {/* TODAY SECTION */}
-            {today.length > 0 && (
-              <div className="feed-section">
-                <div className="feed-section-header">
-                  <Flame size={16} style={{ color: 'var(--color-warning)' }} />
-                  <h3>Today's Sessions ({today.length})</h3>
+          activeWindowDates.map((dateStr) => {
+            const dayEvents = getEventsForDate(dateStr);
+            const isToday = dateStr === todayStr;
+            const dateObj = new Date(`${dateStr}T00:00:00`);
+            const formattedDayLabel = dateObj.toLocaleDateString('default', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+            });
+
+            return (
+              <div key={dateStr} className="feed-day-block">
+                {/* Date Header for Each Day */}
+                <div className={`feed-day-header ${isToday ? 'is-today' : ''}`}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span className="feed-day-title">{formattedDayLabel}</span>
+                    {isToday && <span className="today-badge">TODAY</span>}
+                  </div>
+                  <span className="feed-day-count">
+                    {dayEvents.length > 0 ? `${dayEvents.length} session${dayEvents.length > 1 ? 's' : ''}` : 'Rest Day'}
+                  </span>
                 </div>
 
-                {today.map((item, idx) => (
-                  <FeedCard
-                    key={item.id || `today_${idx}`}
-                    item={item}
-                    onOpenDetail={() => setActiveDetailEvent(item)}
-                    onComplete={() => handleMarkCompleted(item)}
-                  />
-                ))}
+                {/* If day has events: render Feed Cards */}
+                {dayEvents.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
+                    {dayEvents.map((item, idx) => (
+                      <FeedCard
+                        key={item.id || `${dateStr}_${idx}`}
+                        item={item}
+                        onOpenDetail={() => setActiveDetailEvent(item)}
+                        onComplete={() => handleMarkCompleted(item)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  /* If day has NO events: render Rest Day Divider */
+                  <div
+                    className="rest-day-divider"
+                    onClick={() => {
+                      setScheduleDate(dateStr);
+                      setShowScheduleModal(true);
+                    }}
+                    title="Click to schedule or log a workout for this date"
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Moon size={16} style={{ color: 'var(--color-text-muted)' }} />
+                      <span className="rest-day-text">Rest & Recovery Day • No activity logged</span>
+                    </div>
+                    <span className="rest-day-action">+ Log Workout</span>
+                  </div>
+                )}
               </div>
-            )}
-
-            {/* UPCOMING SECTION */}
-            {upcoming.length > 0 && (
-              <div className="feed-section">
-                <div className="feed-section-header">
-                  <CalendarDays size={16} style={{ color: 'var(--color-accent)' }} />
-                  <h3>Upcoming Planned Workouts ({upcoming.length})</h3>
-                </div>
-
-                {upcoming.map((item, idx) => (
-                  <FeedCard
-                    key={item.id || `upcoming_${idx}`}
-                    item={item}
-                    onOpenDetail={() => setActiveDetailEvent(item)}
-                    onComplete={() => handleMarkCompleted(item)}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* PAST HISTORY SECTION */}
-            {past.length > 0 && (
-              <div className="feed-section">
-                <div className="feed-section-header">
-                  <Clock size={16} style={{ color: 'var(--color-success)' }} />
-                  <h3>Past Activity History ({past.length})</h3>
-                </div>
-
-                {past.map((item, idx) => (
-                  <FeedCard
-                    key={item.id || `past_${idx}`}
-                    item={item}
-                    onOpenDetail={() => setActiveDetailEvent(item)}
-                    onComplete={() => handleMarkCompleted(item)}
-                  />
-                ))}
-              </div>
-            )}
-          </>
+            );
+          })
         )}
+      </div>
+
+      {/* BOTTOM PAGINATION BAR */}
+      <div style={{ marginTop: 24 }}>
+        <PaginationBar
+          rangeLabel={rangeLabel}
+          windowOffset={windowOffset}
+          onPrev={() => setWindowOffset((prev) => prev - 1)}
+          onNext={() => setWindowOffset((prev) => prev + 1)}
+          onReset={() => setWindowOffset(0)}
+        />
       </div>
 
       {/* EVENT DETAIL MODAL */}
@@ -423,7 +442,7 @@ export default function CalendarFeedPage() {
         <div className="modal-overlay" onClick={() => setShowScheduleModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">Schedule Future Workout</h3>
+              <h3 className="modal-title">Schedule / Log Workout</h3>
               <button className="btn-close" onClick={() => setShowScheduleModal(false)}>×</button>
             </div>
 
@@ -481,12 +500,35 @@ export default function CalendarFeedPage() {
   );
 }
 
-// TWITTER-STYLE CHRONOLOGICAL FEED CARD COMPONENT
+// 10-DAY PAGINATION CONTROL BAR COMPONENT
+function PaginationBar({ rangeLabel, windowOffset, onPrev, onNext, onReset }) {
+  return (
+    <div className="feed-pagination-bar">
+      <button className="btn btn-secondary pagination-btn" onClick={onPrev} title="Load previous 10 days">
+        <ChevronLeft size={16} /> Older 10 Days
+      </button>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span className="pagination-range-badge">{rangeLabel}</span>
+        {windowOffset !== 0 && (
+          <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={onReset}>
+            Today
+          </button>
+        )}
+      </div>
+
+      <button className="btn btn-secondary pagination-btn" onClick={onNext} title="Load next 10 days">
+        Newer 10 Days <ChevronRight size={16} />
+      </button>
+    </div>
+  );
+}
+
+// CHRONOLOGICAL FEED CARD COMPONENT
 function FeedCard({ item, onOpenDetail, onComplete }) {
   const isPlanned = item.status === 'planned';
   const isGcal = item.isGcal;
 
-  // Category Icon Resolver
   function getCategoryIcon(cat) {
     switch (cat) {
       case 'running': return '🏃';
@@ -507,7 +549,7 @@ function FeedCard({ item, onOpenDetail, onComplete }) {
           <div>
             <h4 className="feed-item-title">{item.workout_name || item.summary}</h4>
             <span className="feed-timestamp">
-              {item.date} • {item.duration || 45} mins • <span style={{ textTransform: 'capitalize' }}>{item.category || 'weightlifting'}</span>
+              {item.duration || 45} mins • <span style={{ textTransform: 'capitalize' }}>{item.category || 'weightlifting'}</span>
             </span>
           </div>
         </div>
