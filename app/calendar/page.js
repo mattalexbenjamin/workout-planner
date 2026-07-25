@@ -64,9 +64,11 @@ export default function CalendarPage() {
       const timeMin = new Date(year, month - 1, 1).toISOString();
       const timeMax = new Date(year, month + 2, 0).toISOString();
 
+      const targetCalId = profile?.selected_calendar_id || (typeof window !== 'undefined' ? localStorage.getItem('apex_selected_calendar_id') : null) || 'primary';
+
       const events = await fetchCalendarEvents(
         session.provider_token,
-        profile?.selected_calendar_id || 'primary',
+        targetCalId,
         timeMin,
         timeMax
       );
@@ -106,7 +108,8 @@ export default function CalendarPage() {
 
     // Auto-sync to Google Calendar if enabled
     if (session?.provider_token && (profile?.auto_sync_gcal !== false)) {
-      await createGoogleCalendarEvent(session.provider_token, profile?.selected_calendar_id || 'primary', newPlanned);
+      const targetCalId = profile?.selected_calendar_id || (typeof window !== 'undefined' ? localStorage.getItem('apex_selected_calendar_id') : null) || 'primary';
+      await createGoogleCalendarEvent(session.provider_token, targetCalId, newPlanned);
     }
 
     setShowScheduleModal(false);

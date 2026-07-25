@@ -32,12 +32,25 @@ export default function SettingsPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
+    const localCalId = typeof window !== 'undefined' ? localStorage.getItem('apex_selected_calendar_id') : null;
+    const localAutoSync = typeof window !== 'undefined' ? localStorage.getItem('apex_auto_sync_gcal') : null;
+
     if (profile) {
       setGeminiApiKey(profile.gemini_api_key || '');
       setOpenaiApiKey(profile.openai_api_key || '');
       setProvider(profile.ai_provider || 'gemini');
-      setSelectedCalendarId(profile.selected_calendar_id || 'primary');
-      setAutoSyncGcal(profile.auto_sync_gcal !== undefined ? profile.auto_sync_gcal : true);
+
+      if (profile.selected_calendar_id) {
+        setSelectedCalendarId(profile.selected_calendar_id);
+      } else if (localCalId) {
+        setSelectedCalendarId(localCalId);
+      }
+
+      if (profile.auto_sync_gcal !== undefined && profile.auto_sync_gcal !== null) {
+        setAutoSyncGcal(profile.auto_sync_gcal);
+      } else if (localAutoSync !== null) {
+        setAutoSyncGcal(localAutoSync === 'true');
+      }
 
       setGoals({
         startWeight: profile.start_weight || 195,
@@ -50,11 +63,7 @@ export default function SettingsPage() {
     } else {
       const localKey = localStorage.getItem('apex_gemini_api_key');
       if (localKey) setGeminiApiKey(localKey);
-
-      const localCalId = localStorage.getItem('apex_selected_calendar_id');
       if (localCalId) setSelectedCalendarId(localCalId);
-
-      const localAutoSync = localStorage.getItem('apex_auto_sync_gcal');
       if (localAutoSync !== null) setAutoSyncGcal(localAutoSync === 'true');
     }
   }, [profile]);
@@ -73,27 +82,32 @@ export default function SettingsPage() {
   }
 
   async function handleSaveSettings() {
+    // Always persist to localStorage for instant local state preservation
+    localStorage.setItem('apex_selected_calendar_id', selectedCalendarId);
+    localStorage.setItem('apex_auto_sync_gcal', String(autoSyncGcal));
+    if (geminiApiKey) localStorage.setItem('apex_gemini_api_key', geminiApiKey);
+
     if (user) {
-      await supabase.from('profiles').upsert({
-        id: user.id,
-        gemini_api_key: geminiApiKey,
-        openai_api_key: openaiApiKey,
-        ai_provider: provider,
-        selected_calendar_id: selectedCalendarId,
-        auto_sync_gcal: autoSyncGcal,
-        start_weight: Number(goals.startWeight),
-        target_weight: Number(goals.targetWeight),
-        current_weight: Number(goals.currentWeight),
-        calories: Number(goals.calories),
-        protein: Number(goals.protein),
-        frequency: Number(goals.frequency),
-        updated_at: new Date().toISOString()
-      });
-      await refreshProfile();
-    } else {
-      localStorage.setItem('apex_gemini_api_key', geminiApiKey);
-      localStorage.setItem('apex_selected_calendar_id', selectedCalendarId);
-      localStorage.setItem('apex_auto_sync_gcal', String(autoSyncGcal));
+      try {
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          gemini_api_key: geminiApiKey,
+          openai_api_key: openaiApiKey,
+          ai_provider: provider,
+          selected_calendar_id: selectedCalendarId,
+          auto_sync_gcal: autoSyncGcal,
+          start_weight: Number(goals.startWeight),
+          target_weight: Number(goals.targetWeight),
+          current_weight: Number(goals.currentWeight),
+          calories: Number(goals.calories),
+          protein: Number(goals.protein),
+          frequency: Number(goals.frequency),
+          updated_at: new Date().toISOString()
+        });
+        await refreshProfile();
+      } catch (err) {
+        console.warn('Profile save warning:', err);
+      }
     }
 
     setSaveSuccess(true);
