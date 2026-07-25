@@ -67,12 +67,15 @@ export default function SettingsPage() {
   }, [profile]);
 
   useEffect(() => {
-    if (session?.provider_token) {
-      loadCalendars(session.provider_token);
+    const token = session?.provider_token || (typeof window !== 'undefined' ? localStorage.getItem('nexus_provider_token') : null);
+    if (token) {
+      loadCalendars(token);
     }
   }, [session]);
 
-  async function loadCalendars(token) {
+  async function loadCalendars(overrideToken) {
+    const token = overrideToken || session?.provider_token || (typeof window !== 'undefined' ? localStorage.getItem('nexus_provider_token') : null);
+    if (!token) return;
     setLoadingCalendars(true);
     const cals = await fetchUserCalendars(token);
     setUserCalendars(cals);
@@ -135,7 +138,7 @@ export default function SettingsPage() {
           <div>
             <p className="card-description">Logged in as <strong>{user.email}</strong></p>
             <button className="btn btn-danger btn-block" onClick={signOut}>
-              <LogOut size={16} /> Sign Out of APEX
+              <LogOut size={16} /> Sign Out of NEXUS
             </button>
           </div>
         ) : (
@@ -160,17 +163,15 @@ export default function SettingsPage() {
             <div className="form-group">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <label className="form-label" style={{ marginBottom: 0 }}>Target Google Calendar</label>
-                {session?.provider_token && (
-                  <button
-                    className="btn btn-secondary"
-                    style={{ padding: '2px 8px', fontSize: '0.75rem' }}
-                    onClick={() => loadCalendars(session.provider_token)}
-                    disabled={loadingCalendars}
-                  >
-                    <RefreshCw size={12} style={{ marginRight: 4, display: 'inline' }} />
-                    {loadingCalendars ? 'Loading...' : 'Refresh Calendars'}
-                  </button>
-                )}
+                <button
+                  className="btn btn-secondary"
+                  style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                  onClick={() => loadCalendars()}
+                  disabled={loadingCalendars}
+                >
+                  <RefreshCw size={12} style={{ marginRight: 4, display: 'inline' }} />
+                  {loadingCalendars ? 'Loading...' : 'Refresh Calendars'}
+                </button>
               </div>
 
               <select
@@ -197,6 +198,17 @@ export default function SettingsPage() {
                 ))}
               </select>
             </div>
+
+            {userCalendars.length === 0 && !loadingCalendars && (
+              <div style={{ backgroundColor: 'var(--bg-surface-elevated)', border: '1px solid var(--border-color)', padding: '12px 14px', borderRadius: 'var(--border-radius-sm)', marginBottom: 16 }}>
+                <p style={{ fontSize: '0.82rem', color: 'var(--color-text-secondary)', marginBottom: 8 }}>
+                  💡 Not seeing your custom Google Calendars? Re-authorize with Google to grant Calendar access permissions.
+                </p>
+                <button className="btn btn-secondary btn-block" style={{ fontSize: '0.8rem' }} onClick={signInWithGoogle}>
+                  🔑 Grant Google Calendar Permissions
+                </button>
+              </div>
+            )}
 
             <div className="form-group" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>
               <div>

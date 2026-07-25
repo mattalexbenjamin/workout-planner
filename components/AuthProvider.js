@@ -17,23 +17,41 @@ export function AuthProvider({ children }) {
   const [supabase] = useState(() => createClient());
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
+  const [providerToken, setProviderToken] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Recover cached provider_token if available
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('nexus_provider_token');
+      if (cached) setProviderToken(cached);
+    }
+
     async function initAuth() {
       const { data: { session: activeSession } } = await supabase.auth.getSession();
-      setSession(activeSession);
-      setUser(activeSession?.user || null);
-
-      if (activeSession?.user) {
+      
+      if (activeSession) {
+        setSession(activeSession);
+        setUser(activeSession.user || null);
+        if (activeSession.provider_token) {
+          setProviderToken(activeSession.provider_token);
+          localStorage.setItem('nexus_provider_token', activeSession.provider_token);
+        }
         await fetchProfile(activeSession.user.id);
       }
+
       setLoading(false);
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
         setSession(newSession);
         setUser(newSession?.user || null);
+
+        if (newSession?.provider_token) {
+          setProviderToken(newSession.provider_token);
+          localStorage.setItem('nexus_provider_token', newSession.provider_token);
+        }
+
         if (newSession?.user) {
           await fetchProfile(newSession.user.id);
         } else {
@@ -69,7 +87,11 @@ export function AuthProvider({ children }) {
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
-        scopes: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly'
+        scopes: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly',
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent'
+        }
       }
     });
     if (error) console.error('OAuth sign in error:', error);
@@ -79,13 +101,26 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
+    setProviderToken(null);
     setProfile(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('nexus_provider_token');
+    }
   }
+
+  const effectiveSession = session
+    ? {
+        ...session,
+        provider_token: session.provider_token || providerToken,
+      }
+    : providerToken
+    ? { provider_token: providerToken }
+    : null;
 
   return (
     <AuthContext.Provider value={{
       user,
-      session,
+      session: effectiveSession,
       profile,
       loading,
       signInWithGoogle,

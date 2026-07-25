@@ -57,7 +57,8 @@ export default function CalendarFeedPage() {
     }
 
     // 2. Fetch Google Calendar events if session has provider_token
-    if (session?.provider_token) {
+    const activeToken = session?.provider_token || (typeof window !== 'undefined' ? localStorage.getItem('nexus_provider_token') : null);
+    if (activeToken) {
       const windowDates = get10DayWindowDates(windowOffset);
       const timeMin = new Date(`${windowDates[0]}T00:00:00Z`).toISOString();
       const timeMax = new Date(`${windowDates[9]}T23:59:59Z`).toISOString();
@@ -65,7 +66,7 @@ export default function CalendarFeedPage() {
       const targetCalId = getSavedCalendarId(profile);
 
       const rawEvents = await fetchCalendarEvents(
-        session.provider_token,
+        activeToken,
         targetCalId,
         timeMin,
         timeMax
