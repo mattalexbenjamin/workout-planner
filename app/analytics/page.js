@@ -44,7 +44,8 @@ export default function AnalyticsPage() {
 
       if (data) dbLogs = data;
     } else {
-      const local = JSON.parse(localStorage.getItem('nexus_logged_workouts') || localStorage.getItem('apex_logged_workouts') || '[]');
+      const localStr = typeof window !== 'undefined' ? (localStorage.getItem('nexus_logged_workouts') || localStorage.getItem('apex_logged_workouts')) : null;
+      const local = JSON.parse(localStr || '[]');
       dbLogs = local;
     }
 
@@ -236,7 +237,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Re-authorize Google Calendar Notice if Token Missing */}
-      {!session?.provider_token && !localStorage.getItem('nexus_provider_token') && (
+      {!session?.provider_token && (typeof window === 'undefined' || !localStorage.getItem('nexus_provider_token')) && (
         <div style={{ backgroundColor: 'var(--bg-surface-elevated)', border: '1px solid var(--border-color)', padding: '14px 16px', borderRadius: 'var(--border-radius-md)', marginBottom: 20 }}>
           <p style={{ fontSize: '0.85rem', color: 'var(--color-text-primary)', marginBottom: 8, fontWeight: 600 }}>
             💡 Connect Google Calendar to analyze 8 months of historical fitness events.
