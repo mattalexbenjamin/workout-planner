@@ -807,3 +807,168 @@ h1, h2, h3, h4, h5, h6 {
 .badge-tag.blue { background-color: #3B82F6; color: #FFF; }
 .badge-tag.green { background-color: #10B981; color: #FFF; }
 
+/* ==========================================================================
+   VERTICAL CHRONOLOGICAL FEED STYLES (TWITTER / X STYLE TIMELINE)
+   ========================================================================== */
+
+.feed-filter-bar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: none;
+}
+
+.feed-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.feed-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.feed-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 8px;
+}
+
+.feed-section-header h3 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.feed-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-md);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.feed-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 82, 255, 0.3);
+}
+
+.feed-card.completed {
+  border-left: 5px solid var(--color-success);
+}
+
+.feed-card.planned {
+  border-left: 5px solid var(--color-warning);
+}
+
+.feed-card.gcal {
+  border-left: 5px solid var(--color-info);
+}
+
+.feed-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.feed-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--bg-surface-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.feed-item-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  line-height: 1.25;
+}
+
+.feed-timestamp {
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+  display: block;
+  margin-top: 2px;
+}
+
+.feed-status-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.feed-status-badge.completed {
+  background-color: var(--color-success-dim);
+  color: var(--color-success);
+}
+
+.feed-status-badge.planned {
+  background-color: var(--color-warning-dim);
+  color: var(--color-warning);
+}
+
+.feed-status-badge.gcal {
+  background-color: var(--color-info-dim);
+  color: var(--color-info);
+}
+
+.feed-description {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  font-style: italic;
+  margin: 0;
+}
+
+.feed-exercises-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.exercise-chip {
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  color: var(--color-text-primary);
+  font-size: 0.78rem;
+  padding: 4px 10px;
+  border-radius: 14px;
+  white-space: nowrap;
+}
+
+.exercise-chip.more {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.feed-card-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--border-color);
+  padding-top: 10px;
+  margin-top: 2px;
+}
+
+
