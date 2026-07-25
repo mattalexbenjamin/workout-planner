@@ -1,16 +1,48 @@
 import { NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 export async function POST(request) {
   try {
-    const { apiKey, provider, exerciseName, reason } = await request.json();
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key',
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              );
+            } catch {
+              // Ignore in Server Component context
+            }
+          },
+        },
+      }
+    );
 
-    if (!apiKey) {
-      return NextResponse.json({ error: "Missing API Key" }, { status: 400 });
+    const { data: { user } } = await supabase.auth.getUser();
+    const body = await request.json();
+    const apiKey = process.env.GEMINI_API_KEY || body.apiKey;
+
+    if (!user && !process.env.GEMINI_API_KEY) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (!apiKey) {
+      return NextResponse.json({ error: "No API Key configured" }, { status: 400 });
+    }
+
+    const { exerciseName, reason, provider } = body;
+
     const systemPrompt = `You are APEX AI strength coach.
-The athlete needs an immediate alternative for the exercise "${exerciseName}".
-Reason given: "${reason || "No specific reason provided"}".
+The athlete needs an immediate replacement for "${exerciseName}".
+Reason given: "${reason || "Provide suitable variation"}".
 Output strictly JSON matching this structure:
 {
   "name": "New Replacement Exercise Name",

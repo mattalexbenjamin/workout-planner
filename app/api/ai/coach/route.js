@@ -1,12 +1,47 @@
 import { NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 export async function POST(request) {
   try {
-    const { apiKey, provider, prompt, soreness, userWeight, equipment } = await request.json();
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key',
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              );
+            } catch {
+              // Ignore in Server Component context
+            }
+          },
+        },
+      }
+    );
+
+    // Verify authenticated user session
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Check for server-managed API key or request payload key
+    const body = await request.json();
+    const apiKey = process.env.GEMINI_API_KEY || body.apiKey;
+
+    if (!user && !process.env.GEMINI_API_KEY) {
+      return NextResponse.json({ error: "Unauthorized. Please sign in to use the AI Coach." }, { status: 401 });
+    }
 
     if (!apiKey) {
-      return NextResponse.json({ error: "Missing API Key. Please add your Gemini/OpenAI API key in Settings." }, { status: 400 });
+      return NextResponse.json({ error: "No Gemini API key configured on Vercel or in Settings." }, { status: 400 });
     }
+
+    const { prompt, soreness, userWeight, equipment, provider } = body;
 
     const systemPrompt = `You are APEX AI, an elite athletic strength & conditioning coach.
 Generate a custom, structured workout formatted strictly as valid JSON.
@@ -35,23 +70,15 @@ Do not output markdown codeblock syntax, output raw JSON string only.`;
         },
         body: JSON.stringify({
           model: 'gpt-4o-mini',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: 'Generate workout JSON.' }
-          ],
+          messages: [{ role: 'system', content: systemPrompt }],
           response_format: { type: "json_object" }
         })
       });
 
       const data = await response.json();
-      if (!response.ok) {
-        return NextResponse.json({ error: data.error?.message || "OpenAI API error" }, { status: response.status });
-      }
-
-      const workout = JSON.parse(data.choices[0].message.content);
-      return NextResponse.json({ workout });
+      if (!response.ok) return NextResponse.json({ error: data.error?.message || "OpenAI API Error" }, { status: response.status });
+      return NextResponse.json({ workout: JSON.parse(data.choices[0].message.content) });
     } else {
-      // Default: Gemini API
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
       const response = await fetch(geminiUrl, {
         method: 'POST',
@@ -63,13 +90,10 @@ Do not output markdown codeblock syntax, output raw JSON string only.`;
       });
 
       const data = await response.json();
-      if (!response.ok) {
-        return NextResponse.json({ error: data.error?.message || "Gemini API error" }, { status: response.status });
-      }
+      if (!response.ok) return NextResponse.json({ error: data.error?.message || "Gemini API Error" }, { status: response.status });
 
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      const workout = JSON.parse(text);
-      return NextResponse.json({ workout });
+      return NextResponse.json({ workout: JSON.parse(text) });
     }
 
   } catch (error) {
