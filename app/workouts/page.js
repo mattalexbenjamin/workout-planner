@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { ATHLETIC_WORKOUTS, getExerciseGuideUrl } from '@/lib/workouts-catalog';
 import { useAuth } from '@/components/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
-import { createGoogleCalendarEvent } from '@/lib/gcalendar';
+import { createGoogleCalendarEvent, getSavedCalendarId } from '@/lib/gcalendar';
 import { Dumbbell, Clock, Flame, CheckCircle, ExternalLink } from 'lucide-react';
 
 export default function WorkoutsPage() {
@@ -48,7 +48,8 @@ export default function WorkoutsPage() {
     }
 
     if (session?.provider_token && (profile?.auto_sync_gcal !== false)) {
-      await createGoogleCalendarEvent(session.provider_token, profile?.selected_calendar_id || 'primary', newLog);
+      const targetCalId = getSavedCalendarId(profile);
+      await createGoogleCalendarEvent(session.provider_token, targetCalId, newLog);
     }
 
     setLogSuccess(workout.name);

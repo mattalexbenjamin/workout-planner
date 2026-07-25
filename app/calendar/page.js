@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { ATHLETIC_WORKOUTS, getExerciseGuideUrl } from '@/lib/workouts-catalog';
-import { fetchCalendarEvents, createGoogleCalendarEvent, inferWorkoutFromTitle } from '@/lib/gcalendar';
+import { fetchCalendarEvents, createGoogleCalendarEvent, inferWorkoutFromTitle, getSavedCalendarId } from '@/lib/gcalendar';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, PlusCircle, CheckCircle, Clock, ExternalLink, CalendarDays, Flame, Dumbbell, ShieldAlert, Trash2 } from 'lucide-react';
 
 export default function CalendarPage() {
@@ -64,7 +64,7 @@ export default function CalendarPage() {
       const timeMin = new Date(year, month - 1, 1).toISOString();
       const timeMax = new Date(year, month + 2, 0).toISOString();
 
-      const targetCalId = profile?.selected_calendar_id || (typeof window !== 'undefined' ? localStorage.getItem('apex_selected_calendar_id') : null) || 'primary';
+      const targetCalId = getSavedCalendarId(profile);
 
       const events = await fetchCalendarEvents(
         session.provider_token,
@@ -108,7 +108,7 @@ export default function CalendarPage() {
 
     // Auto-sync to Google Calendar if enabled
     if (session?.provider_token && (profile?.auto_sync_gcal !== false)) {
-      const targetCalId = profile?.selected_calendar_id || (typeof window !== 'undefined' ? localStorage.getItem('apex_selected_calendar_id') : null) || 'primary';
+      const targetCalId = getSavedCalendarId(profile);
       await createGoogleCalendarEvent(session.provider_token, targetCalId, newPlanned);
     }
 

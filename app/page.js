@@ -5,7 +5,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { ATHLETIC_WORKOUTS, getExerciseGuideUrl } from '@/lib/workouts-catalog';
 import { getRecommendation, formatDateKey, calculateSoreness } from '@/lib/recommender';
-import { createGoogleCalendarEvent } from '@/lib/gcalendar';
+import { createGoogleCalendarEvent, getSavedCalendarId } from '@/lib/gcalendar';
 import { Sparkles, Calendar as CalendarIcon, Activity, PlusCircle, CheckCircle, Flame, Dumbbell } from 'lucide-react';
 
 export default function TodayPage() {
@@ -118,7 +118,8 @@ export default function TodayPage() {
     }
 
     if (session?.provider_token && (profile?.auto_sync_gcal !== false)) {
-      await createGoogleCalendarEvent(session.provider_token, profile?.selected_calendar_id || 'primary', newLog);
+      const targetCalId = getSavedCalendarId(profile);
+      await createGoogleCalendarEvent(session.provider_token, targetCalId, newLog);
     }
 
     setShowLogModal(false);
