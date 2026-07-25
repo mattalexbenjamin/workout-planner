@@ -270,15 +270,26 @@ export default function AnalyticsPage() {
     .filter((item) => categorizeEvent(item) === selectedCategory)
     .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
+  const CATEGORY_COLORS = {
+    weightlifting: '#0052FF',
+    volleyball: '#F59E0B',
+    grass_volleyball: '#10B981',
+    basketball: '#F97316',
+    running: '#06B6D4',
+    flag_football: '#EF4444',
+    recovery: '#8B5CF6',
+    other: '#64748B'
+  };
+
   const chartData = {
     labels: ['Weightlifting', 'Sand Volleyball', 'Grass Volleyball', 'Basketball', 'Running', 'Flag Football', 'Recovery', 'Other'],
     datasets: [
       {
         label: 'Total Active Hours',
         data: CATEGORY_KEYS.map((k) => (categoryStats[k] / 60).toFixed(1)),
-        backgroundColor: CATEGORY_KEYS.map((k) => (k === selectedCategory ? '#00F0FF' : '#0052FF')),
-        borderColor: CATEGORY_KEYS.map((k) => (k === selectedCategory ? '#0052FF' : 'transparent')),
-        borderWidth: 2,
+        backgroundColor: CATEGORY_KEYS.map((k) => CATEGORY_COLORS[k] || '#0052FF'),
+        borderColor: CATEGORY_KEYS.map((k) => (k === selectedCategory ? '#00F0FF' : 'transparent')),
+        borderWidth: CATEGORY_KEYS.map((k) => (k === selectedCategory ? 4 : 0)),
         borderRadius: 8
       }
     ]
