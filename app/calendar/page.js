@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { ATHLETIC_WORKOUTS, getExerciseGuideUrl } from '@/lib/workouts-catalog';
-import { fetchCalendarEvents, createGoogleCalendarEvent, getSavedCalendarId } from '@/lib/gcalendar';
-import { Calendar as CalendarIcon, PlusCircle, CheckCircle, Clock, ExternalLink, CalendarDays, Dumbbell, ShieldAlert, Trash2, Flame, Sparkles, ChevronLeft, ChevronRight, RefreshCw, Activity, Moon } from 'lucide-react';
+import { fetchCalendarEvents, createGoogleCalendarEvent, deleteGoogleCalendarEvent, getSavedCalendarId } from '@/lib/gcalendar';
+import { Calendar as CalendarIcon, PlusCircle, CheckCircle, Clock, ExternalLink, CalendarDays, Dumbbell, ShieldAlert, Trash2, Flame, Sparkles, ChevronLeft, ChevronRight, RefreshCw, Activity, Moon, Tag } from 'lucide-react';
 
 export default function CalendarFeedPage() {
   const { user, session, profile, signInWithGoogle } = useAuth();
@@ -172,6 +172,27 @@ export default function CalendarFeedPage() {
     loadCalendarData();
   }
 
+  // Handle deleting a Google Calendar event
+  async function handleDeleteGcalEvent(gcalEvent) {
+    if (!session?.provider_token || !gcalEvent?.gcalId) return;
+
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete "${gcalEvent.workout_name || gcalEvent.summary}" from your Google Calendar?`
+    );
+
+    if (!confirmDelete) return;
+
+    const targetCalId = getSavedCalendarId(profile);
+    const success = await deleteGoogleCalendarEvent(session.provider_token, targetCalId, gcalEvent.gcalId);
+
+    if (success) {
+      setActiveDetailEvent(null);
+      loadCalendarData();
+    } else {
+      alert('Failed to delete event from Google Calendar. Please try again.');
+    }
+  }
+
   const todayStr = new Date().toISOString().split('T')[0];
   const activeWindowDates = get10DayWindowDates(windowOffset);
   const rangeLabel = getDateRangeLabel(activeWindowDates);
@@ -322,6 +343,7 @@ export default function CalendarFeedPage() {
                         item={item}
                         onOpenDetail={() => setActiveDetailEvent(item)}
                         onComplete={() => handleMarkCompleted(item)}
+                        onDeleteGcal={() => handleDeleteGcalEvent(item)}
                       />
                     ))}
                   </div>
@@ -379,6 +401,25 @@ export default function CalendarFeedPage() {
               <span style={{ textTransform: 'capitalize' }}><Dumbbell size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> {activeDetailEvent.category || 'Weightlifting'}</span>
             </div>
 
+            {/* Sport Category Override Selector for Analytics */}
+            <div className="form-group" style={{ marginBottom: 16 }}>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Tag size={14} /> Sport Category (for Analytics Tracking)
+              </label>
+              <select
+                className="form-select"
+                value={activeDetailEvent.category || 'weightlifting'}
+                onChange={(e) => setActiveDetailEvent({ ...activeDetailEvent, category: e.target.value })}
+              >
+                <option value="weightlifting">🏋️ Weightlifting</option>
+                <option value="running">🏃 Running / Cardio</option>
+                <option value="volleyball">🏐 Sand Volleyball</option>
+                <option value="flag_football">🏈 Flag Football</option>
+                <option value="recovery">🧘 Recovery / Mobility</option>
+                <option value="other">⚡ Other Activity</option>
+              </select>
+            </div>
+
             {activeDetailEvent.notes && (
               <p className="card-description" style={{ marginBottom: 16, fontStyle: 'italic' }}>
                 "{activeDetailEvent.notes}"
@@ -406,7 +447,7 @@ export default function CalendarFeedPage() {
                 ))
               ) : (
                 <li style={{ padding: '12px 0', color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>
-                  No explicit exercise set/rep breakdown provided for this session.
+                  No explicit exercise set/rep breakdown. (Categorized as {activeDetailEvent.category || 'general'} for Sports Volume Analytics).
                 </li>
               )}
             </ul>
@@ -414,7 +455,8 @@ export default function CalendarFeedPage() {
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               {(activeDetailEvent.status === 'planned' || activeDetailEvent.isGcal) && (
                 <button
-                  className="btn btn-primary btn-block"
+                  className="btn btn-primary"
+                  style={{ flex: 1 }}
                   onClick={() => handleMarkCompleted(activeDetailEvent)}
                 >
                   <CheckCircle size={18} />
@@ -422,7 +464,16 @@ export default function CalendarFeedPage() {
                 </button>
               )}
 
-              {!activeDetailEvent.isGcal && (
+              {activeDetailEvent.isGcal ? (
+                <button
+                  className="btn btn-danger"
+                  onClick={() => handleDeleteGcalEvent(activeDetailEvent)}
+                  style={{ padding: '10px 14px' }}
+                  title="Delete Event from Google Calendar"
+                >
+                  <Trash2 size={16} style={{ display: 'inline', marginRight: 4 }} /> Delete Google Event
+                </button>
+              ) : (
                 <button
                   className="btn btn-danger"
                   onClick={() => handleDeleteWorkout(activeDetailEvent.id)}
@@ -525,7 +576,7 @@ function PaginationBar({ rangeLabel, windowOffset, onPrev, onNext, onReset }) {
 }
 
 // CHRONOLOGICAL FEED CARD COMPONENT
-function FeedCard({ item, onOpenDetail, onComplete }) {
+function FeedCard({ item, onOpenDetail, onComplete, onDeleteGcal }) {
   const isPlanned = item.status === 'planned';
   const isGcal = item.isGcal;
 
@@ -582,14 +633,27 @@ function FeedCard({ item, onOpenDetail, onComplete }) {
       {/* Card Action Bar */}
       <div className="feed-card-actions" onClick={(e) => e.stopPropagation()}>
         <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={onOpenDetail}>
-          View Routine ({item.exercises?.length || 0}) <ChevronRight size={14} />
+          Details ({item.exercises?.length || 0}) <ChevronRight size={14} />
         </button>
 
-        {(isPlanned || isGcal) && (
-          <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={onComplete}>
-            <CheckCircle size={14} /> Complete & Log
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: 6 }}>
+          {isGcal && (
+            <button
+              className="btn btn-danger"
+              style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+              onClick={onDeleteGcal}
+              title="Delete Event from Google Calendar"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+
+          {(isPlanned || isGcal) && (
+            <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={onComplete}>
+              <CheckCircle size={14} /> Complete & Log
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
