@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { fetchCalendarEvents, deleteGoogleCalendarEvent, updateGoogleCalendarEventDuration, getSavedCalendarId } from '@/lib/gcalendar';
-import { BarChart3, RefreshCw, Clock, Tag, Trash2, ChevronRight, CheckCircle, ExternalLink, Calendar as CalendarIcon, Dumbbell } from 'lucide-react';
+import { BarChart3, RefreshCw, Clock, Tag, Trash2, ChevronRight, CheckCircle, ExternalLink, Calendar as CalendarIcon, Dumbbell, ChevronLeft, Check, Flame, Award, PlusCircle } from 'lucide-react';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PointElement, LineElement } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 
@@ -23,6 +23,21 @@ const CATEGORY_NAMES = {
   other: '⚡ Other'
 };
 
+const DEFAULT_HABITS = [
+  { id: 'hydration', name: '💧 Hydration (3L+)' },
+  { id: 'sleep', name: '😴 8h Quality Sleep' },
+  { id: 'deep_work', name: '🧠 Deep Work Session' },
+  { id: 'nutrition', name: '🥗 Clean Nutrition & Protein' },
+  { id: 'mobility', name: '🧘 Mobility & Stretching' },
+];
+
+function formatDateKey(d) {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default function AnalyticsPage() {
   const { user, session, profile, signInWithGoogle } = useAuth();
   const [supabase] = useState(() => createClient());
@@ -37,6 +52,61 @@ export default function AnalyticsPage() {
   const [categorySaved, setCategorySaved] = useState(false);
   const [durationSaved, setDurationSaved] = useState(false);
 
+  // Habit Matrix State for Analytics
+  const [habits, setHabits] = useState(DEFAULT_HABITS);
+  const [habitLogs, setHabitLogs] = useState({});
+  const [newHabitName, setNewHabitName] = useState('');
+  const [monthOffset, setMonthOffset] = useState(0); // 0 = current 30-day window, -1 = previous 30 days, +1 = next 30 days
+
+  const analyticsTodayRef = useRef(null);
+
+  // 30-day date range generator for analytics
+  const analyticsHabitDates = React.useMemo(() => {
+    const list = [];
+    const base = new Date();
+    base.setDate(base.getDate() + (monthOffset * 30));
+    const currentDateStr = formatDateKey(new Date());
+
+    for (let i = -29; i <= 0; i++) {
+      const d = new Date(base);
+      d.setDate(d.getDate() + i);
+      const dateKey = formatDateKey(d);
+      const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short' });
+      const numLabel = d.getDate();
+      const isToday = dateKey === currentDateStr;
+      list.push({ dateKey, dayLabel, numLabel, isToday, rawDate: d });
+    }
+    return list;
+  }, [monthOffset]);
+
+  // Center scroll onto Today's column when viewing current 30-day window
+  useEffect(() => {
+    if (monthOffset === 0 && analyticsTodayRef.current) {
+      analyticsTodayRef.current.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }, [analyticsHabitDates, monthOffset]);
+
+  useEffect(() => {
+    loadAnalyticsData();
+    fetchHabitsData();
+  }, [user, session, rangeDays]);
+
+  async function fetchHabitsData() {
+    if (typeof window === 'undefined') return;
+    const storageKey = user ? `nexus_custom_habits_${user.id}` : 'nexus_custom_habits_guest';
+    const logsKey = user ? `nexus_habit_logs_${user.id}` : 'nexus_habit_logs_guest';
+
+    const localHabits = localStorage.getItem(storageKey);
+    if (localHabits) {
+      try { setHabits(JSON.parse(localHabits)); } catch (e) {}
+    }
+
+    const localLogs = localStorage.getItem(logsKey);
+    if (localLogs) {
+      try { setHabitLogs(JSON.parse(localLogs)); } catch (e) {}
+    }
+  }
+
   function handleCategorySelect(catKey) {
     if (selectedCategory === catKey) {
       setSelectedCategory(null); // Toggle off if clicked again to return to default
@@ -44,10 +114,6 @@ export default function AnalyticsPage() {
       setSelectedCategory(catKey);
     }
   }
-
-  useEffect(() => {
-    loadAnalyticsData();
-  }, [user, session, rangeDays]);
 
   async function loadAnalyticsData() {
     setLoading(true);
@@ -245,6 +311,103 @@ export default function AnalyticsPage() {
     loadAnalyticsData();
   }
 
+  // Habit Management for Analytics Matrix
+  function handleAddHabit(e) {
+    e.preventDefault();
+    if (!newHabitName.trim()) return;
+
+    const newHabit = {
+      id: `custom_${Date.now()}`,
+      name: newHabitName.trim()
+    };
+
+    const updated = [...habits, newHabit];
+    setHabits(updated);
+    setNewHabitName('');
+
+    if (typeof window !== 'undefined') {
+      const storageKey = user ? `nexus_custom_habits_${user.id}` : 'nexus_custom_habits_guest';
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    }
+  }
+
+  function handleDeleteHabit(habitId) {
+    const updated = habits.filter(h => h.id !== habitId);
+    setHabits(updated);
+
+    if (typeof window !== 'undefined') {
+      const storageKey = user ? `nexus_custom_habits_${user.id}` : 'nexus_custom_habits_guest';
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    }
+  }
+
+  function toggleHabitCheck(habitId, dateKey) {
+    const key = `${habitId}_${dateKey}`;
+    const nextLogs = { ...habitLogs, [key]: !habitLogs[key] };
+    setHabitLogs(nextLogs);
+
+    if (typeof window !== 'undefined') {
+      const storageKey = user ? `nexus_habit_logs_${user.id}` : 'nexus_habit_logs_guest';
+      localStorage.setItem(storageKey, JSON.stringify(nextLogs));
+    }
+  }
+
+  // Calculate deep habit stats (Current Streak, Longest All-Time Streak, 30-Day Success %, Best Day of Week)
+  function getHabitDeepStats(habitId) {
+    let currentStreak = 0;
+    let longestStreak = 0;
+    let tempStreak = 0;
+    let countIn30Days = 0;
+
+    const weekdayCounts = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+
+    const today = new Date();
+    for (let i = 0; i < 90; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateKey = formatDateKey(d);
+      if (habitLogs[`${habitId}_${dateKey}`]) {
+        currentStreak++;
+      } else if (i > 0) {
+        break;
+      }
+    }
+
+    analyticsHabitDates.forEach(d => {
+      if (habitLogs[`${habitId}_${d.dateKey}`]) {
+        countIn30Days++;
+        const dayName = d.rawDate.toLocaleDateString('en-US', { weekday: 'short' });
+        if (weekdayCounts[dayName] !== undefined) {
+          weekdayCounts[dayName]++;
+        }
+      }
+    });
+
+    for (let i = 0; i < 180; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateKey = formatDateKey(d);
+      if (habitLogs[`${habitId}_${dateKey}`]) {
+        tempStreak++;
+        if (tempStreak > longestStreak) longestStreak = tempStreak;
+      } else {
+        tempStreak = 0;
+      }
+    }
+
+    const thirtyDaySuccessRate = Math.round((countIn30Days / 30) * 100);
+    const sortedDays = Object.entries(weekdayCounts).sort((a, b) => b[1] - a[1]);
+    const bestDay = sortedDays[0]?.[1] > 0 ? sortedDays[0][0] : 'N/A';
+
+    return {
+      currentStreak,
+      longestStreak: Math.max(longestStreak, currentStreak),
+      thirtyDaySuccessRate,
+      countIn30Days,
+      bestDay
+    };
+  }
+
   // Aggregate category durations
   const categoryStats = {
     weightlifting: 0,
@@ -344,7 +507,7 @@ export default function AnalyticsPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <h2><BarChart3 size={24} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 8 }} /> NEXUS Life & Fitness Analytics</h2>
-            <span className="card-description">Click any bar on the chart to inspect, edit, or delete logged events for that sport category.</span>
+            <span className="card-description">Comprehensive multi-sport analytics, 30-day expanded habit matrix, and historical Google Calendar tracking.</span>
           </div>
 
           <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={loadAnalyticsData} disabled={loading}>
@@ -437,6 +600,127 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
+      {/* 30-DAY EXPANDED HABIT & ROUTINE MATRIX CARD */}
+      <div className="habit-matrix-card" id="habit-matrix" style={{ marginTop: 24, marginBottom: 24 }}>
+        <div className="card-header" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h3>30-Day Expanded Habit & Routine Matrix</h3>
+            <span className="card-description">Comprehensive 30-day view with historical streak tracking, longest all-time streak, monthly success rate, and best day of week.</span>
+          </div>
+
+          {/* Month Pagination */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              className="btn btn-secondary"
+              style={{ padding: '4px 10px', fontSize: '0.8rem' }}
+              onClick={() => setMonthOffset(monthOffset - 1)}
+            >
+              <ChevronLeft size={14} /> Earlier 30 Days
+            </button>
+            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-accent)' }}>
+              {monthOffset === 0 ? 'Current 30 Days' : `${Math.abs(monthOffset * 30)} Days Ago`}
+            </span>
+            {monthOffset < 0 && (
+              <button
+                className="btn btn-secondary"
+                style={{ padding: '4px 10px', fontSize: '0.8rem' }}
+                onClick={() => setMonthOffset(monthOffset + 1)}
+              >
+                Newer <ChevronRight size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Matrix Scrollable Container */}
+        <div className="habit-matrix-wrapper" style={{ maxHeight: 480 }}>
+          <table className="habit-table">
+            <thead>
+              <tr>
+                <th className="sticky-col-left" style={{ minWidth: 200 }}>Habit / Routine</th>
+                {analyticsHabitDates.map((d) => (
+                  <th
+                    key={d.dateKey}
+                    ref={d.isToday ? analyticsTodayRef : null}
+                    className={`date-col-header ${d.isToday ? 'is-today' : ''}`}
+                  >
+                    <div>{d.dayLabel}</div>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 900 }}>{d.numLabel}</div>
+                  </th>
+                ))}
+                <th className="sticky-col-right" style={{ minWidth: 220, textAlign: 'center' }}>Deep Habit Analytics</th>
+              </tr>
+            </thead>
+            <tbody>
+              {habits.map((habit) => {
+                const deepStats = getHabitDeepStats(habit.id);
+                return (
+                  <tr key={habit.id} className="habit-row">
+                    <td className="sticky-col-left">
+                      <div className="habit-name-box">
+                        <button
+                          className="btn-delete-habit"
+                          title="Delete Habit"
+                          onClick={() => handleDeleteHabit(habit.id)}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                        <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>{habit.name}</span>
+                      </div>
+                    </td>
+                    {analyticsHabitDates.map((d) => {
+                      const isChecked = Boolean(habitLogs[`${habit.id}_${d.dateKey}`]);
+                      return (
+                        <td key={d.dateKey} className="habit-cell-check">
+                          <button
+                            className={`habit-check-btn ${isChecked ? 'checked' : ''}`}
+                            onClick={() => toggleHabitCheck(habit.id, d.dateKey)}
+                            title={`${habit.name} on ${d.dateKey}`}
+                          >
+                            <Check size={16} strokeWidth={3} />
+                          </button>
+                        </td>
+                      );
+                    })}
+                    <td className="sticky-col-right" style={{ textAlign: 'center' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <span className="streak-badge" title="Current Active Streak">
+                            🔥 {deepStats.currentStreak}d
+                          </span>
+                          <span className="badge-tag gold" style={{ fontSize: '0.7rem' }} title="Longest All-Time Streak">
+                            🏆 Best: {deepStats.longestStreak}d
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'flex', gap: 8 }}>
+                          <span><strong>{deepStats.thirtyDaySuccessRate}%</strong> (30d)</span>
+                          <span>• Top: <strong>{deepStats.bestDay}</strong></span>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Add Habit Inline Form */}
+        <form onSubmit={handleAddHabit} style={{ marginTop: 14, display: 'flex', gap: 10 }}>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="+ Type a new custom habit or routine..."
+            value={newHabitName}
+            onChange={(e) => setNewHabitName(e.target.value)}
+          />
+          <button type="submit" className="btn btn-secondary" style={{ whiteSpace: 'nowrap' }}>
+            <PlusCircle size={16} style={{ marginRight: 4 }} />
+            Add Habit
+          </button>
+        </form>
+      </div>
+
       {/* Category Events Manager Section */}
       <div className="dashboard-card">
         <div className="card-header" style={{ marginBottom: 16 }}>
@@ -515,7 +799,7 @@ export default function AnalyticsPage() {
           </div>
         ) : (
           <p className="card-description" style={{ textAlign: 'center', padding: '24px 0', color: 'var(--color-text-muted)' }}>
-            No events logged under {CATEGORY_NAMES[selectedCategory]} in the last {rangeDays} days.
+            No events logged under {selectedCategory ? CATEGORY_NAMES[selectedCategory] : 'All Categories'} in the last {rangeDays} days.
           </p>
         )}
       </div>
@@ -553,7 +837,7 @@ export default function AnalyticsPage() {
               </div>
               <select
                 className="form-select"
-                value={activeDetailEvent.category || selectedCategory}
+                value={activeDetailEvent.category || selectedCategory || 'weightlifting'}
                 onChange={(e) => handleCategoryChange(e.target.value)}
               >
                 {CATEGORY_KEYS.map((k) => (

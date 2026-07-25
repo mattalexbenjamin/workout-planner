@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/components/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { ATHLETIC_WORKOUTS, getExerciseGuideUrl } from '@/lib/workouts-catalog';
@@ -341,6 +342,9 @@ export default function TodayPage() {
             <h3>Habit & Routine Matrix</h3>
             <span className="card-description">Track daily routines horizontally across dates with live streak metrics.</span>
           </div>
+          <Link href="/analytics#habit-matrix" className="btn btn-secondary" style={{ fontSize: '0.78rem', padding: '4px 10px', whiteSpace: 'nowrap' }}>
+            View Detailed Analytics ↗
+          </Link>
         </div>
 
         {/* Matrix Scrollable Container */}
@@ -394,14 +398,14 @@ export default function TodayPage() {
                       );
                     })}
                     <td className="sticky-col-right" style={{ textAlign: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                        <span className="streak-badge" title="Current Active Streak">
+                      <Link href="/analytics#habit-matrix" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                        <span className="streak-badge" title="Current Active Streak (Click to view full analytics)">
                           🔥 {stats.streak}d
                         </span>
-                        <span className="completion-rate" title="Total Times Logged">
+                        <span className="completion-rate" title="Total Times Logged (Click to view full analytics)">
                           📈 {stats.totalCompleted}
                         </span>
-                      </div>
+                      </Link>
                     </td>
                   </tr>
                 );
