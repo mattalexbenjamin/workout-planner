@@ -20,6 +20,7 @@ export default function CalendarFeedPage() {
 
   // Modal States
   const [activeDetailEvent, setActiveDetailEvent] = useState(null);
+  const [categorySaved, setCategorySaved] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleDate, setScheduleDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedCatalogId, setSelectedCatalogId] = useState(ATHLETIC_WORKOUTS[0].id);
@@ -63,12 +64,25 @@ export default function CalendarFeedPage() {
 
       const targetCalId = getSavedCalendarId(profile);
 
-      const events = await fetchCalendarEvents(
+      const rawEvents = await fetchCalendarEvents(
         session.provider_token,
         targetCalId,
         timeMin,
         timeMax
       );
+
+      const localOverrides = JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('apex_gcal_category_overrides') || '{}' : '{}');
+      const profileOverrides = profile?.gcal_category_overrides || {};
+      const mergedOverrides = { ...localOverrides, ...profileOverrides };
+
+      const events = rawEvents.map((evt) => {
+        const key = evt.gcalId || evt.id;
+        if (mergedOverrides[key]) {
+          return { ...evt, category: mergedOverrides[key] };
+        }
+        return evt;
+      });
+
       setGcalEvents(events);
     }
 
@@ -191,6 +205,50 @@ export default function CalendarFeedPage() {
     } else {
       alert('Failed to delete event from Google Calendar. Please try again.');
     }
+  }
+
+  // Handle auto-saving category changes for both APEX logs and Google Calendar events
+  async function handleCategoryChange(newCategory) {
+    if (!activeDetailEvent) return;
+
+    const updatedEvent = { ...activeDetailEvent, category: newCategory };
+    setActiveDetailEvent(updatedEvent);
+
+    if (activeDetailEvent.isGcal) {
+      const eventKey = activeDetailEvent.gcalId || activeDetailEvent.id;
+      const localOverrides = JSON.parse(localStorage.getItem('apex_gcal_category_overrides') || '{}');
+      localOverrides[eventKey] = newCategory;
+      localStorage.setItem('apex_gcal_category_overrides', JSON.stringify(localOverrides));
+
+      setGcalEvents((prev) =>
+        prev.map((item) => ((item.gcalId || item.id) === eventKey ? { ...item, category: newCategory } : item))
+      );
+
+      if (user) {
+        await supabase
+          .from('profiles')
+          .update({ gcal_category_overrides: localOverrides })
+          .eq('id', user.id);
+      }
+    } else if (activeDetailEvent.id) {
+      if (user) {
+        await supabase
+          .from('workout_logs')
+          .update({ category: newCategory })
+          .eq('id', activeDetailEvent.id);
+      } else {
+        const localLogs = JSON.parse(localStorage.getItem('apex_logged_workouts') || '[]');
+        const updatedLogs = localLogs.map((l) => (l.id === activeDetailEvent.id ? { ...l, category: newCategory } : l));
+        localStorage.setItem('apex_logged_workouts', JSON.stringify(updatedLogs));
+      }
+
+      setWorkoutLogs((prev) =>
+        prev.map((item) => (item.id === activeDetailEvent.id ? { ...item, category: newCategory } : item))
+      );
+    }
+
+    setCategorySaved(true);
+    setTimeout(() => setCategorySaved(false), 2000);
   }
 
   const todayStr = new Date().toISOString().split('T')[0];
@@ -403,13 +461,20 @@ export default function CalendarFeedPage() {
 
             {/* Sport Category Override Selector for Analytics */}
             <div className="form-group" style={{ marginBottom: 16 }}>
-              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Tag size={14} /> Sport Category (for Analytics Tracking)
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 4, margin: 0 }}>
+                  <Tag size={14} /> Sport Category (for Analytics Tracking)
+                </label>
+                {categorySaved && (
+                  <span className="badge-tag green" style={{ fontSize: '0.7rem', padding: '2px 8px' }}>
+                    Saved ✓
+                  </span>
+                )}
+              </div>
               <select
                 className="form-select"
                 value={activeDetailEvent.category || 'weightlifting'}
-                onChange={(e) => setActiveDetailEvent({ ...activeDetailEvent, category: e.target.value })}
+                onChange={(e) => handleCategoryChange(e.target.value)}
               >
                 <option value="weightlifting">🏋️ Weightlifting</option>
                 <option value="running">🏃 Running / Cardio</option>
