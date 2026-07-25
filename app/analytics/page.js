@@ -31,11 +31,19 @@ export default function AnalyticsPage() {
   const [combinedEvents, setCombinedEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Selected Category & Event Modal States
-  const [selectedCategory, setSelectedCategory] = useState('weightlifting');
+  // Selected Category & Event Modal States (null = All Categories)
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const [activeDetailEvent, setActiveDetailEvent] = useState(null);
   const [categorySaved, setCategorySaved] = useState(false);
   const [durationSaved, setDurationSaved] = useState(false);
+
+  function handleCategorySelect(catKey) {
+    if (selectedCategory === catKey) {
+      setSelectedCategory(null); // Toggle off if clicked again to return to default
+    } else {
+      setSelectedCategory(catKey);
+    }
+  }
 
   useEffect(() => {
     loadAnalyticsData();
@@ -265,10 +273,11 @@ export default function AnalyticsPage() {
   const topCategoryKey = sortedCategories[0]?.[0] || 'weightlifting';
   const topCategoryMins = sortedCategories[0]?.[1] || 0;
 
-  // Filtered events for the currently selected category
-  const selectedCategoryEvents = combinedEvents
-    .filter((item) => categorizeEvent(item) === selectedCategory)
-    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  // Filtered events for the currently selected category (null = All Categories)
+  const selectedCategoryEvents = (selectedCategory
+    ? combinedEvents.filter((item) => categorizeEvent(item) === selectedCategory)
+    : combinedEvents
+  ).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
   const CATEGORY_COLORS = {
     weightlifting: '#0052FF',
@@ -303,7 +312,7 @@ export default function AnalyticsPage() {
         const idx = elements[0].index;
         const clickedCategory = CATEGORY_KEYS[idx];
         if (clickedCategory) {
-          setSelectedCategory(clickedCategory);
+          handleCategorySelect(clickedCategory);
         }
       }
     },
@@ -419,7 +428,7 @@ export default function AnalyticsPage() {
             <span className="card-description">Click any bar below to view and manage events for that category.</span>
           </div>
           <span className="badge-tag blue" style={{ fontSize: '0.75rem' }}>
-            Selected: {CATEGORY_NAMES[selectedCategory]}
+            Selected: {selectedCategory ? CATEGORY_NAMES[selectedCategory] : 'All Categories'}
           </span>
         </div>
 
@@ -432,20 +441,26 @@ export default function AnalyticsPage() {
       <div className="dashboard-card">
         <div className="card-header" style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-            <h3>{CATEGORY_NAMES[selectedCategory]} Events ({selectedCategoryEvents.length})</h3>
+            <h3>{selectedCategory ? `${CATEGORY_NAMES[selectedCategory]} Events` : 'All Sport Events'} ({selectedCategoryEvents.length})</h3>
             <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
-              Total: <strong>{(categoryStats[selectedCategory] / 60).toFixed(1)} hrs</strong> logged over last {rangeDays} days
+              Total: <strong>{selectedCategory ? `${(categoryStats[selectedCategory] / 60).toFixed(1)} hrs` : `${totalHours} hrs`}</strong> logged over last {rangeDays} days
             </span>
           </div>
         </div>
 
         {/* Category Pill Buttons */}
         <div className="feed-filter-bar" style={{ marginBottom: 16 }}>
+          <button
+            className={`filter-pill ${selectedCategory === null ? 'active' : ''}`}
+            onClick={() => setSelectedCategory(null)}
+          >
+            🌟 All Categories ({combinedEvents.length})
+          </button>
           {CATEGORY_KEYS.map((k) => (
             <button
               key={k}
               className={`filter-pill ${selectedCategory === k ? 'active' : ''}`}
-              onClick={() => setSelectedCategory(k)}
+              onClick={() => handleCategorySelect(k)}
             >
               {CATEGORY_NAMES[k]} ({combinedEvents.filter((item) => categorizeEvent(item) === k).length})
             </button>
