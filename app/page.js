@@ -13,14 +13,7 @@ import {
   Bot, Wand2, Sliders
 } from 'lucide-react';
 import MetricTooltip from '@/components/MetricTooltip';
-
-const DEFAULT_HABITS = [
-  { id: 'hydration', name: '💧 Hydration (3L+)' },
-  { id: 'sleep', name: '😴 8h Quality Sleep' },
-  { id: 'deep_work', name: '🧠 Deep Work Session' },
-  { id: 'nutrition', name: '🥗 Clean Nutrition & Protein' },
-  { id: 'mobility', name: '🧘 Mobility & Stretching' },
-];
+import { DEFAULT_HABITS, fetchUserHabitsAndLogs, saveHabitToAdd, saveHabitToDelete, saveHabitCheckToggle } from '@/lib/habits-sync';
 
 export default function TodayPage() {
   const { user, session, profile } = useAuth();
@@ -116,17 +109,6 @@ export default function TodayPage() {
 
       if (wData) setWorkouts(wData);
 
-      // 3. Fetch Habits & Habit Logs
-      const localCustomHabits = localStorage.getItem(`nexus_custom_habits_${user.id}`);
-      if (localCustomHabits) {
-        try { setHabits(JSON.parse(localCustomHabits)); } catch (e) {}
-      }
-
-      const localLogs = localStorage.getItem(`nexus_habit_logs_${user.id}`);
-      if (localLogs) {
-        try { setHabitLogs(JSON.parse(localLogs)); } catch (e) {}
-      }
-
       const localFocus = localStorage.getItem(`nexus_daily_focus_${user.id}_${currentDateStr}`);
       if (localFocus) setDailyFocus(localFocus);
 
@@ -138,19 +120,14 @@ export default function TodayPage() {
       const localWorkouts = localStorage.getItem('nexus_logged_workouts');
       if (localWorkouts) setWorkouts(JSON.parse(localWorkouts));
 
-      const localHabits = localStorage.getItem('nexus_custom_habits_guest');
-      if (localHabits) {
-        try { setHabits(JSON.parse(localHabits)); } catch (e) {}
-      }
-
-      const localLogs = localStorage.getItem('nexus_habit_logs_guest');
-      if (localLogs) {
-        try { setHabitLogs(JSON.parse(localLogs)); } catch (e) {}
-      }
-
       const localFocus = localStorage.getItem(`nexus_daily_focus_guest_${currentDateStr}`);
       if (localFocus) setDailyFocus(localFocus);
     }
+
+    // 3. Fetch Habits & Habit Logs (Supabase Cloud + Local Storage auto-sync)
+    const { habits: fetchedHabits, habitLogs: fetchedLogs } = await fetchUserHabitsAndLogs(supabase, user);
+    setHabits(fetchedHabits);
+    setHabitLogs(fetchedLogs);
   }
 
   useEffect(() => {
@@ -181,8 +158,8 @@ export default function TodayPage() {
     }
   }
 
-  // Habits Management
-  function handleAddHabit(e) {
+  // Habits Management (Cloud & Local Sync)
+  async function handleAddHabit(e) {
     e.preventDefault();
     if (!newHabitName.trim()) return;
 
@@ -191,29 +168,19 @@ export default function TodayPage() {
       name: newHabitName.trim()
     };
 
-    const updated = [...habits, newHabit];
-    setHabits(updated);
     setNewHabitName('');
-
-    const storageKey = user ? `nexus_custom_habits_${user.id}` : 'nexus_custom_habits_guest';
-    localStorage.setItem(storageKey, JSON.stringify(updated));
+    const updatedHabits = await saveHabitToAdd(supabase, user, newHabit, habits);
+    setHabits(updatedHabits);
   }
 
-  function handleDeleteHabit(habitId) {
-    const updated = habits.filter(h => h.id !== habitId);
-    setHabits(updated);
-
-    const storageKey = user ? `nexus_custom_habits_${user.id}` : 'nexus_custom_habits_guest';
-    localStorage.setItem(storageKey, JSON.stringify(updated));
+  async function handleDeleteHabit(habitId) {
+    const updatedHabits = await saveHabitToDelete(supabase, user, habitId, habits);
+    setHabits(updatedHabits);
   }
 
-  function toggleHabitCheck(habitId, dateKey) {
-    const key = `${habitId}_${dateKey}`;
-    const nextLogs = { ...habitLogs, [key]: !habitLogs[key] };
+  async function toggleHabitCheck(habitId, dateKey) {
+    const nextLogs = await saveHabitCheckToggle(supabase, user, habitId, dateKey, habitLogs);
     setHabitLogs(nextLogs);
-
-    const storageKey = user ? `nexus_habit_logs_${user.id}` : 'nexus_habit_logs_guest';
-    localStorage.setItem(storageKey, JSON.stringify(nextLogs));
   }
 
   function handleSaveDailyFocus() {

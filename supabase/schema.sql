@@ -110,3 +110,42 @@ ALTER TABLE public.trophies ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can manage own trophies" 
   ON public.trophies FOR ALL 
   USING (auth.uid() = user_id);
+
+
+-- 5. User Custom Habits Table
+CREATE TABLE IF NOT EXISTS public.user_habits (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  habit_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  display_order INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, habit_id)
+);
+
+-- Enable RLS for User Habits
+ALTER TABLE public.user_habits ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage own custom habits" 
+  ON public.user_habits FOR ALL 
+  USING (auth.uid() = user_id);
+
+
+-- 6. Habit Checkmark Logs Table
+CREATE TABLE IF NOT EXISTS public.habit_logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  habit_id TEXT NOT NULL,
+  date DATE NOT NULL,
+  completed BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, habit_id, date)
+);
+
+-- Enable RLS for Habit Logs
+ALTER TABLE public.habit_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage own habit logs" 
+  ON public.habit_logs FOR ALL 
+  USING (auth.uid() = user_id);
+

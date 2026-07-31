@@ -8,6 +8,7 @@ import { BarChart3, RefreshCw, Clock, Tag, Trash2, ChevronRight, CheckCircle, Ex
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PointElement, LineElement } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import MetricTooltip from '@/components/MetricTooltip';
+import { DEFAULT_HABITS, fetchUserHabitsAndLogs, saveHabitToAdd, saveHabitToDelete, saveHabitCheckToggle } from '@/lib/habits-sync';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -23,14 +24,6 @@ const CATEGORY_NAMES = {
   recovery: '🧘 Recovery',
   other: '⚡ Other'
 };
-
-const DEFAULT_HABITS = [
-  { id: 'hydration', name: '💧 Hydration (3L+)' },
-  { id: 'sleep', name: '😴 8h Quality Sleep' },
-  { id: 'deep_work', name: '🧠 Deep Work Session' },
-  { id: 'nutrition', name: '🥗 Clean Nutrition & Protein' },
-  { id: 'mobility', name: '🧘 Mobility & Stretching' },
-];
 
 function formatDateKey(d) {
   const year = d.getFullYear();
@@ -108,19 +101,9 @@ export default function AnalyticsPage() {
   }, [user, session, rangeDays]);
 
   async function fetchHabitsData() {
-    if (typeof window === 'undefined') return;
-    const storageKey = user ? `nexus_custom_habits_${user.id}` : 'nexus_custom_habits_guest';
-    const logsKey = user ? `nexus_habit_logs_${user.id}` : 'nexus_habit_logs_guest';
-
-    const localHabits = localStorage.getItem(storageKey);
-    if (localHabits) {
-      try { setHabits(JSON.parse(localHabits)); } catch (e) {}
-    }
-
-    const localLogs = localStorage.getItem(logsKey);
-    if (localLogs) {
-      try { setHabitLogs(JSON.parse(localLogs)); } catch (e) {}
-    }
+    const { habits: fetchedHabits, habitLogs: fetchedLogs } = await fetchUserHabitsAndLogs(supabase, user);
+    setHabits(fetchedHabits);
+    setHabitLogs(fetchedLogs);
   }
 
   function handleCategorySelect(catKey) {
@@ -327,8 +310,8 @@ export default function AnalyticsPage() {
     loadAnalyticsData();
   }
 
-  // Habit Management for Analytics Matrix
-  function handleAddHabit(e) {
+  // Habit Management for Analytics Matrix (Cloud & Local Sync)
+  async function handleAddHabit(e) {
     e.preventDefault();
     if (!newHabitName.trim()) return;
 
@@ -337,35 +320,19 @@ export default function AnalyticsPage() {
       name: newHabitName.trim()
     };
 
-    const updated = [...habits, newHabit];
-    setHabits(updated);
     setNewHabitName('');
-
-    if (typeof window !== 'undefined') {
-      const storageKey = user ? `nexus_custom_habits_${user.id}` : 'nexus_custom_habits_guest';
-      localStorage.setItem(storageKey, JSON.stringify(updated));
-    }
+    const updatedHabits = await saveHabitToAdd(supabase, user, newHabit, habits);
+    setHabits(updatedHabits);
   }
 
-  function handleDeleteHabit(habitId) {
-    const updated = habits.filter(h => h.id !== habitId);
-    setHabits(updated);
-
-    if (typeof window !== 'undefined') {
-      const storageKey = user ? `nexus_custom_habits_${user.id}` : 'nexus_custom_habits_guest';
-      localStorage.setItem(storageKey, JSON.stringify(updated));
-    }
+  async function handleDeleteHabit(habitId) {
+    const updatedHabits = await saveHabitToDelete(supabase, user, habitId, habits);
+    setHabits(updatedHabits);
   }
 
-  function toggleHabitCheck(habitId, dateKey) {
-    const key = `${habitId}_${dateKey}`;
-    const nextLogs = { ...habitLogs, [key]: !habitLogs[key] };
+  async function toggleHabitCheck(habitId, dateKey) {
+    const nextLogs = await saveHabitCheckToggle(supabase, user, habitId, dateKey, habitLogs);
     setHabitLogs(nextLogs);
-
-    if (typeof window !== 'undefined') {
-      const storageKey = user ? `nexus_habit_logs_${user.id}` : 'nexus_habit_logs_guest';
-      localStorage.setItem(storageKey, JSON.stringify(nextLogs));
-    }
   }
 
   // Calculate deep habit stats (Current Streak, Longest All-Time Streak, 30-Day Success %, Best Day of Week)
