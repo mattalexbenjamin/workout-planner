@@ -1081,7 +1081,7 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: 20px;
   box-shadow: 0 10px 30px rgba(0, 82, 255, 0.15);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .nexus-banner-glow {
@@ -1092,12 +1092,14 @@ h1, h2, h3, h4, h5, h6 {
   height: 150px;
   background: radial-gradient(circle, rgba(0, 82, 255, 0.35) 0%, rgba(0, 240, 255, 0) 70%);
   pointer-events: none;
+  border-radius: 50%;
 }
 
 .readiness-ring-container {
   display: flex;
   align-items: center;
   gap: 16px;
+  overflow: visible;
 }
 
 .readiness-score-box {
@@ -1110,6 +1112,7 @@ h1, h2, h3, h4, h5, h6 {
   justify-content: center;
   position: relative;
   flex-shrink: 0;
+  overflow: visible;
 }
 
 .readiness-score-inner {
@@ -1121,6 +1124,8 @@ h1, h2, h3, h4, h5, h6 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  overflow: visible;
+  position: relative;
 }
 
 .readiness-val {
@@ -1358,16 +1363,16 @@ th.sticky-col-right {
 
 .metric-tooltip-popover {
   position: absolute;
-  z-index: 1000;
+  z-index: 99999;
   width: 290px;
-  max-width: 85vw;
+  max-width: calc(100vw - 32px);
   padding: 14px 16px;
-  background: rgba(15, 23, 42, 0.96);
+  background: rgba(15, 23, 42, 0.98);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(0, 240, 255, 0.35);
+  border: 1px solid rgba(0, 240, 255, 0.4);
   border-radius: 12px;
-  box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.7), 0 0 20px rgba(0, 240, 255, 0.2);
+  box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 240, 255, 0.25);
   color: var(--color-text-primary);
   font-size: 0.82rem;
   line-height: 1.45;
@@ -1396,6 +1401,17 @@ th.sticky-col-right {
   right: calc(100% + 10px);
   top: 50%;
   transform: translateY(-50%);
+}
+
+@media (max-width: 640px) {
+  .metric-tooltip-popover.pos-left {
+    right: -10px;
+    top: calc(100% + 10px);
+    left: auto;
+    transform: none;
+    width: 280px;
+    max-width: calc(100vw - 32px);
+  }
 }
 
 @keyframes tooltipFadeIn {
