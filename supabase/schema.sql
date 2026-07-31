@@ -143,10 +143,22 @@ CREATE TABLE IF NOT EXISTS public.habit_logs (
   UNIQUE(user_id, habit_id, date)
 );
 
--- Enable RLS for Habit Logs
-ALTER TABLE public.habit_logs ENABLE ROW LEVEL SECURITY;
+-- 7. Caffeine Logs Table
+CREATE TABLE IF NOT EXISTS public.caffeine_logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  caffeine_mg INTEGER NOT NULL,
+  powder_grams NUMERIC DEFAULT NULL,
+  consumed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
-CREATE POLICY "Users can manage own habit logs" 
-  ON public.habit_logs FOR ALL 
+-- Enable RLS for Caffeine Logs
+ALTER TABLE public.caffeine_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage own caffeine logs" 
+  ON public.caffeine_logs FOR ALL 
   USING (auth.uid() = user_id);
+
 
