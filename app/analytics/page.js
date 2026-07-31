@@ -46,6 +46,21 @@ export default function AnalyticsPage() {
   const [combinedEvents, setCombinedEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Volume Metric Toggle State ('hours' | 'instances' | 'days')
+  const [volumeMetric, setVolumeMetric] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('nexus_analytics_volume_metric') || 'hours';
+    }
+    return 'hours';
+  });
+
+  const handleVolumeMetricChange = (metric) => {
+    setVolumeMetric(metric);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nexus_analytics_volume_metric', metric);
+    }
+  };
+
   // Selected Category & Event Modal States (null = All Categories)
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [activeDetailEvent, setActiveDetailEvent] = useState(null);
@@ -408,22 +423,32 @@ export default function AnalyticsPage() {
     };
   }
 
-  // Aggregate category durations
-  const categoryStats = {
-    weightlifting: 0,
-    volleyball: 0,
-    grass_volleyball: 0,
-    basketball: 0,
-    running: 0,
-    flag_football: 0,
-    recovery: 0,
-    other: 0,
+  // Aggregate category metrics (hours, instances, unique active days)
+  const categoryStats = { weightlifting: 0, volleyball: 0, grass_volleyball: 0, basketball: 0, running: 0, flag_football: 0, recovery: 0, other: 0 };
+  const categoryInstances = { weightlifting: 0, volleyball: 0, grass_volleyball: 0, basketball: 0, running: 0, flag_football: 0, recovery: 0, other: 0 };
+  const categoryDaysMap = {
+    weightlifting: new Set(),
+    volleyball: new Set(),
+    grass_volleyball: new Set(),
+    basketball: new Set(),
+    running: new Set(),
+    flag_football: new Set(),
+    recovery: new Set(),
+    other: new Set()
   };
 
   combinedEvents.forEach((item) => {
     const catKey = categorizeEvent(item);
     const duration = Number(item.duration || 45);
-    categoryStats[catKey] += duration;
+    if (categoryStats[catKey] !== undefined) {
+      categoryStats[catKey] += duration;
+      categoryInstances[catKey] += 1;
+      const rawDate = item.date || item.startDateTime || item.start?.dateTime || item.start?.date;
+      if (rawDate) {
+        const dateKey = String(rawDate).split('T')[0];
+        categoryDaysMap[catKey].add(dateKey);
+      }
+    }
   });
 
   const totalMinutes = Object.values(categoryStats).reduce((a, b) => a + b, 0);
@@ -453,12 +478,33 @@ export default function AnalyticsPage() {
     other: '#64748B'
   };
 
+  const getMetricData = () => {
+    if (volumeMetric === 'instances') {
+      return CATEGORY_KEYS.map((k) => categoryInstances[k]);
+    } else if (volumeMetric === 'days') {
+      return CATEGORY_KEYS.map((k) => categoryDaysMap[k].size);
+    }
+    return CATEGORY_KEYS.map((k) => (categoryStats[k] / 60).toFixed(1));
+  };
+
+  const getMetricLabel = () => {
+    if (volumeMetric === 'instances') return 'Session Instances';
+    if (volumeMetric === 'days') return 'Unique Active Days';
+    return 'Total Active Hours';
+  };
+
+  const getMetricYAxisTitle = () => {
+    if (volumeMetric === 'instances') return 'Sessions';
+    if (volumeMetric === 'days') return 'Active Days';
+    return 'Hours';
+  };
+
   const chartData = {
     labels: ['Weightlifting', 'Sand Volleyball', 'Grass Volleyball', 'Basketball', 'Running', 'Flag Football', 'Recovery', 'Other'],
     datasets: [
       {
-        label: 'Total Active Hours',
-        data: CATEGORY_KEYS.map((k) => (categoryStats[k] / 60).toFixed(1)),
+        label: getMetricLabel(),
+        data: getMetricData(),
         backgroundColor: CATEGORY_KEYS.map((k) => CATEGORY_COLORS[k] || '#0052FF'),
         borderColor: CATEGORY_KEYS.map((k) => (k === selectedCategory ? '#00F0FF' : 'transparent')),
         borderWidth: CATEGORY_KEYS.map((k) => (k === selectedCategory ? 4 : 0)),
@@ -483,13 +529,21 @@ export default function AnalyticsPage() {
       legend: { display: false },
       tooltip: {
         callbacks: {
-          label: (context) => `${context.parsed.y} Hours (${Math.round(context.parsed.y * 60)} Mins) — Click to view events`
+          label: (context) => {
+            const val = context.parsed.y;
+            if (volumeMetric === 'instances') {
+              return `${val} Session${val === 1 ? '' : 's'} — Click to view events`;
+            } else if (volumeMetric === 'days') {
+              return `${val} Active Day${val === 1 ? '' : 's'} — Click to view events`;
+            }
+            return `${val} Hours (${Math.round(val * 60)} Mins) — Click to view events`;
+          }
         }
       }
     },
     scales: {
       y: {
-        title: { display: true, text: 'Hours', color: '#94A3B8' },
+        title: { display: true, text: getMetricYAxisTitle(), color: '#94A3B8' },
         ticks: { color: '#94A3B8' },
         grid: { color: '#E2E8F0' }
       },
@@ -585,14 +639,42 @@ export default function AnalyticsPage() {
 
       {/* Interactive Volume Chart Card */}
       <div className="dashboard-card">
-        <div className="card-header" style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="card-header" style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
           <div>
-            <h3>Multi-Sport Volume Distribution (Hours)</h3>
+            <h3>Multi-Sport Volume Distribution ({volumeMetric === 'instances' ? 'Sessions' : volumeMetric === 'days' ? 'Days' : 'Hours'})</h3>
             <span className="card-description">Click any bar below to view and manage events for that category.</span>
           </div>
-          <span className="badge-tag blue" style={{ fontSize: '0.75rem' }}>
-            Selected: {selectedCategory ? CATEGORY_NAMES[selectedCategory] : 'All Categories'}
-          </span>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {/* Metric Toggle Pills */}
+            <div className="feed-filter-bar" style={{ margin: 0 }}>
+              <button
+                className={`filter-pill ${volumeMetric === 'hours' ? 'active' : ''}`}
+                onClick={() => handleVolumeMetricChange('hours')}
+                style={{ padding: '4px 12px', fontSize: '0.78rem' }}
+              >
+                Hours
+              </button>
+              <button
+                className={`filter-pill ${volumeMetric === 'instances' ? 'active' : ''}`}
+                onClick={() => handleVolumeMetricChange('instances')}
+                style={{ padding: '4px 12px', fontSize: '0.78rem' }}
+              >
+                Instances
+              </button>
+              <button
+                className={`filter-pill ${volumeMetric === 'days' ? 'active' : ''}`}
+                onClick={() => handleVolumeMetricChange('days')}
+                style={{ padding: '4px 12px', fontSize: '0.78rem' }}
+              >
+                Days
+              </button>
+            </div>
+
+            <span className="badge-tag blue" style={{ fontSize: '0.75rem' }}>
+              Selected: {selectedCategory ? CATEGORY_NAMES[selectedCategory] : 'All Categories'}
+            </span>
+          </div>
         </div>
 
         <div style={{ height: 280, position: 'relative', cursor: 'pointer' }}>
