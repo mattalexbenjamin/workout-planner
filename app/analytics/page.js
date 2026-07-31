@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { fetchCalendarEvents, deleteGoogleCalendarEvent, updateGoogleCalendarEventDuration, getSavedCalendarId } from '@/lib/gcalendar';
-import { BarChart3, RefreshCw, Clock, Tag, Trash2, ChevronRight, CheckCircle, ExternalLink, Calendar as CalendarIcon, Dumbbell, ChevronLeft, Check, Flame, Award, PlusCircle, Sparkles, TrendingUp, Activity, Zap, Target } from 'lucide-react';
+import { BarChart3, RefreshCw, Clock, Tag, Trash2, ChevronRight, CheckCircle, ExternalLink, Calendar as CalendarIcon, Dumbbell, ChevronLeft, Check, Flame, Award, PlusCircle, Sparkles, TrendingUp, Activity, Zap, Target, Coffee, Scale, Moon, AlertTriangle, BatteryCharging, Plus, X, Sliders, Info, ShieldAlert, Sun } from 'lucide-react';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PointElement, LineElement } from 'chart.js';
 import { Bar, Line } from 'react-chartjs-2';
 import MetricTooltip from '@/components/MetricTooltip';
@@ -68,6 +68,290 @@ export default function AnalyticsPage() {
   const [monthOffset, setMonthOffset] = useState(0); // 0 = current 30-day window, -1 = previous 30 days, +1 = next 30 days
   const [heatmapMode, setHeatmapMode] = useState('combined'); // 'combined' | 'habits' | 'workouts'
   const [hoveredHeatmapDay, setHoveredHeatmapDay] = useState(null);
+
+  // --- Caffeine Tracker State & Settings ---
+  const [caffeineLogs, setCaffeineLogs] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('nexus_caffeine_logs_v1');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
+    }
+    const now = new Date();
+    const morning = new Date(now);
+    morning.setHours(8, 30, 0, 0);
+    return [
+      {
+        id: 'caff_sample_1',
+        name: 'Celsius Can (200mg)',
+        caffeineMg: 200,
+        timestamp: morning.toISOString(),
+        beverageType: 'celsius_can'
+      }
+    ];
+  });
+
+  const [caffeineSettings, setCaffeineSettings] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('nexus_caffeine_settings_v1');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
+    }
+    return {
+      dailyCapMg: 400,
+      targetBedtime: '22:30', // 10:30 PM default
+      halfLifeHours: 5
+    };
+  });
+
+  // Modal / Form state for Caffeine Tracker
+  const [showCaffeineModal, setShowCaffeineModal] = useState(false);
+  const [showCaffeineSettingsModal, setShowCaffeineSettingsModal] = useState(false);
+  const [caffFormName, setCaffFormName] = useState('Celsius Can');
+  const [caffFormMg, setCaffFormMg] = useState(200);
+  const [caffFormPowderGrams, setCaffFormPowderGrams] = useState(5.6);
+  const [isScaleMode, setIsScaleMode] = useState(false);
+  const [caffFormTime, setCaffFormTime] = useState(() => {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  });
+
+  // LocalStorage Persistence
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nexus_caffeine_logs_v1', JSON.stringify(caffeineLogs));
+    }
+  }, [caffeineLogs]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nexus_caffeine_settings_v1', JSON.stringify(caffeineSettings));
+    }
+  }, [caffeineSettings]);
+
+  // Handle Logging
+  const handleLogCaffeine = (name, mg, powderGrams = null, customTimeStr = null) => {
+    const logDate = new Date();
+    if (customTimeStr) {
+      const [h, m] = customTimeStr.split(':').map(Number);
+      logDate.setHours(h || 0, m || 0, 0, 0);
+    }
+
+    const newLog = {
+      id: `caff_${Date.now()}`,
+      name: name || 'Caffeine Drink',
+      caffeineMg: Number(mg),
+      powderGrams: powderGrams ? Number(powderGrams) : null,
+      timestamp: logDate.toISOString()
+    };
+
+    setCaffeineLogs(prev => [newLog, ...prev]);
+    setShowCaffeineModal(false);
+  };
+
+  const handleDeleteCaffeineLog = (logId) => {
+    setCaffeineLogs(prev => prev.filter(item => item.id !== logId));
+  };
+
+  // Pharmacokinetic Half-Life Decay Calculations
+  const getActiveCaffeineAtTime = (targetDate = new Date()) => {
+    const halfLifeMs = (caffeineSettings.halfLifeHours || 5) * 60 * 60 * 1000;
+    const targetMs = targetDate.getTime();
+    let activeTotal = 0;
+
+    caffeineLogs.forEach(log => {
+      const logMs = new Date(log.timestamp).getTime();
+      if (targetMs >= logMs) {
+        const elapsed = targetMs - logMs;
+        const remaining = log.caffeineMg * Math.pow(0.5, elapsed / halfLifeMs);
+        activeTotal += remaining;
+      }
+    });
+
+    return Math.max(0, activeTotal);
+  };
+
+  const todayCaffeineTotal = React.useMemo(() => {
+    const todayKey = formatDateKey(new Date());
+    return caffeineLogs
+      .filter(log => formatDateKey(new Date(log.timestamp)) === todayKey)
+      .reduce((sum, log) => sum + log.caffeineMg, 0);
+  }, [caffeineLogs]);
+
+  const currentActiveCaffeine = getActiveCaffeineAtTime(new Date());
+
+  const bedtimeDateObj = React.useMemo(() => {
+    const [h, m] = (caffeineSettings.targetBedtime || '22:30').split(':').map(Number);
+    const d = new Date();
+    d.setHours(h || 22, m || 30, 0, 0);
+    if (Date.now() > d.getTime() + 2 * 3600 * 1000) {
+      d.setDate(d.getDate() + 1);
+    }
+    return d;
+  }, [caffeineSettings.targetBedtime]);
+
+  const bedtimeActiveCaffeine = getActiveCaffeineAtTime(bedtimeDateObj);
+
+  // Clearance Time calculation (< 10mg)
+  const clearanceTimeInfo = React.useMemo(() => {
+    if (currentActiveCaffeine < 10) return { label: 'System Clear (< 10 mg)', hours: 0 };
+    const nowMs = Date.now();
+    for (let mins = 0; mins <= 36 * 60; mins += 15) {
+      const futureDate = new Date(nowMs + mins * 60 * 1000);
+      const active = getActiveCaffeineAtTime(futureDate);
+      if (active < 10) {
+        const hrs = (mins / 60).toFixed(1);
+        const timeStr = futureDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        return { label: `${timeStr} (~${hrs} hrs)`, hours: Number(hrs) };
+      }
+    }
+    return { label: '> 36 hrs', hours: 36 };
+  }, [caffeineLogs, caffeineSettings.halfLifeHours, currentActiveCaffeine]);
+
+  // Sleep Risk Gauge
+  const sleepRiskGauge = React.useMemo(() => {
+    if (bedtimeActiveCaffeine < 25) {
+      return {
+        level: 'Low Risk',
+        color: '#10B981',
+        badgeBg: 'rgba(16, 185, 129, 0.15)',
+        desc: 'Optimal for deep slow-wave & REM sleep architecture.'
+      };
+    } else if (bedtimeActiveCaffeine <= 50) {
+      return {
+        level: 'Moderate Risk',
+        color: '#F59E0B',
+        badgeBg: 'rgba(245, 158, 11, 0.15)',
+        desc: 'May delay sleep onset latency and reduce restorative deep sleep.'
+      };
+    } else {
+      return {
+        level: 'High Sleep Disruption Risk',
+        color: '#EF4444',
+        badgeBg: 'rgba(239, 68, 68, 0.15)',
+        desc: 'Elevated caffeine at bedtime. High risk of fragmented sleep.'
+      };
+    }
+  }, [bedtimeActiveCaffeine]);
+
+  // 24-Hour Bloodstream Decay Line Chart Data
+  const caffeineDecayChartData = React.useMemo(() => {
+    const labels = [];
+    const points = [];
+    const now = new Date();
+    const startTime = new Date(now);
+    startTime.setHours(startTime.getHours() - 6, 0, 0, 0);
+
+    for (let i = 0; i <= 24; i++) {
+      const pointDate = new Date(startTime.getTime() + i * 60 * 60 * 1000);
+      const activeMg = Math.round(getActiveCaffeineAtTime(pointDate) * 10) / 10;
+      const label = pointDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      labels.push(label);
+      points.push(activeMg);
+    }
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Blood Caffeine Level (mg)',
+          data: points,
+          borderColor: '#F59E0B',
+          backgroundColor: 'rgba(245, 158, 11, 0.12)',
+          borderWidth: 2.5,
+          pointRadius: 2,
+          pointHoverRadius: 5,
+          pointBackgroundColor: '#F59E0B',
+          fill: true,
+          tension: 0.35
+        }
+      ]
+    };
+  }, [caffeineLogs, caffeineSettings.halfLifeHours]);
+
+  const decayChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (context) => `Active Caffeine: ${context.parsed.y} mg`
+        }
+      }
+    },
+    scales: {
+      y: {
+        min: 0,
+        title: { display: true, text: 'Active Caffeine (mg)', color: '#94A3B8' },
+        ticks: { color: '#94A3B8' },
+        grid: { color: '#E2E8F0' }
+      },
+      x: {
+        ticks: { color: '#94A3B8', maxRotation: 45, minRotation: 0 },
+        grid: { display: false }
+      }
+    }
+  };
+
+  // 7-Day History Trend Bar Chart Data
+  const caffeineHistoryTrendChartData = React.useMemo(() => {
+    const labels = [];
+    const data = [];
+    const today = new Date();
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const dateKey = formatDateKey(d);
+      const dayName = i === 0 ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short' });
+
+      const daySum = caffeineLogs
+        .filter(log => formatDateKey(new Date(log.timestamp)) === dateKey)
+        .reduce((sum, log) => sum + log.caffeineMg, 0);
+
+      labels.push(dayName);
+      data.push(daySum);
+    }
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Daily Caffeine Intake (mg)',
+          data,
+          backgroundColor: data.map(val => val > (caffeineSettings.dailyCapMg || 400) ? '#EF4444' : '#F59E0B'),
+          borderRadius: 6
+        }
+      ]
+    };
+  }, [caffeineLogs, caffeineSettings.dailyCapMg]);
+
+  const caffeineHistoryChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (context) => `Intake: ${context.parsed.y} mg`
+        }
+      }
+    },
+    scales: {
+      y: {
+        min: 0,
+        title: { display: true, text: 'Intake (mg)', color: '#94A3B8' },
+        ticks: { color: '#94A3B8' },
+        grid: { color: '#E2E8F0' }
+      },
+      x: {
+        ticks: { color: '#94A3B8' },
+        grid: { display: false }
+      }
+    }
+  };
 
   const analyticsTodayRef = useRef(null);
 
@@ -1461,6 +1745,447 @@ export default function AnalyticsPage() {
           </p>
         )}
       </div>
+
+      {/* CAFFEINE PHARMACOKINETICS & SLEEP READINESS HUB */}
+      <div className="caffeine-analytics-hub" style={{ marginTop: 28, marginBottom: 24 }}>
+        <div className="card-header" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+          <div>
+            <h2 style={{ display: 'inline-flex', alignItems: 'center', fontSize: '1.35rem', color: 'var(--color-text-primary)' }}>
+              <Coffee size={22} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 8, color: '#F59E0B' }} />
+              Caffeine Pharmacokinetics & Sleep Readiness
+            </h2>
+            <span className="card-description" style={{ display: 'block', marginTop: 2 }}>
+              Track active bloodstream caffeine half-life decay (t₁/₂ = {caffeineSettings.halfLifeHours || 5} hrs), projected caffeine at bedtime, Celsius powder scale measurements, and sleep risk.
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-secondary"
+              style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+              onClick={() => setShowCaffeineSettingsModal(true)}
+            >
+              <Sliders size={14} style={{ marginRight: 4 }} /> Target Settings
+            </button>
+            <button
+              className="btn btn-primary"
+              style={{ padding: '6px 14px', fontSize: '0.8rem', backgroundColor: '#F59E0B', borderColor: '#F59E0B', color: '#0F172A' }}
+              onClick={() => {
+                setIsScaleMode(false);
+                setCaffFormName('Celsius Can');
+                setCaffFormMg(200);
+                setShowCaffeineModal(true);
+              }}
+            >
+              <PlusCircle size={14} style={{ marginRight: 4 }} /> Log Caffeine
+            </button>
+          </div>
+        </div>
+
+        {/* 4 Caffeine KPI Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 16 }}>
+          {/* Card 1: Active Bloodstream Caffeine Right Now */}
+          <div className="dashboard-card" style={{ marginBottom: 0, padding: '14px 16px' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <BatteryCharging size={14} style={{ color: '#F59E0B' }} /> Current Active Caffeine
+            </span>
+            <h2 style={{ fontSize: '1.8rem', color: '#F59E0B', marginTop: 6, marginBottom: 2 }}>
+              {Math.round(currentActiveCaffeine)} <span style={{ fontSize: '1rem', color: 'var(--color-text-secondary)' }}>mg</span>
+            </h2>
+            <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
+              Clearance: {clearanceTimeInfo.label}
+            </span>
+          </div>
+
+          {/* Card 2: Today Total Intake vs Daily Safety Limit */}
+          <div className="dashboard-card" style={{ marginBottom: 0, padding: '14px 16px' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Zap size={14} style={{ color: todayCaffeineTotal > caffeineSettings.dailyCapMg ? '#EF4444' : '#0052FF' }} /> Today's Total Intake
+            </span>
+            <h2 style={{ fontSize: '1.8rem', color: todayCaffeineTotal > caffeineSettings.dailyCapMg ? '#EF4444' : 'var(--color-text-primary)', marginTop: 6, marginBottom: 2 }}>
+              {todayCaffeineTotal} <span style={{ fontSize: '1rem', color: 'var(--color-text-secondary)' }}>/ {caffeineSettings.dailyCapMg} mg</span>
+            </h2>
+            <div style={{ width: '100%', height: 6, backgroundColor: 'var(--border-color)', borderRadius: 3, marginTop: 4, overflow: 'hidden' }}>
+              <div
+                style={{
+                  height: '100%',
+                  width: `${Math.min(100, Math.round((todayCaffeineTotal / caffeineSettings.dailyCapMg) * 100))}%`,
+                  backgroundColor: todayCaffeineTotal > caffeineSettings.dailyCapMg ? '#EF4444' : '#0052FF',
+                  borderRadius: 3
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Card 3: Bedtime Caffeine Level */}
+          <div className="dashboard-card" style={{ marginBottom: 0, padding: '14px 16px' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Moon size={14} style={{ color: '#8B5CF6' }} /> Bedtime Level ({caffeineSettings.targetBedtime})
+            </span>
+            <h2 style={{ fontSize: '1.8rem', color: sleepRiskGauge.color, marginTop: 6, marginBottom: 2 }}>
+              {Math.round(bedtimeActiveCaffeine)} <span style={{ fontSize: '1rem', color: 'var(--color-text-secondary)' }}>mg</span>
+            </h2>
+            <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
+              Projected in bloodstream at sleep
+            </span>
+          </div>
+
+          {/* Card 4: Sleep Readiness Risk Indicator */}
+          <div className="dashboard-card" style={{ marginBottom: 0, padding: '14px 16px' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <ShieldAlert size={14} style={{ color: sleepRiskGauge.color }} /> Sleep Readiness Risk
+            </span>
+            <div style={{ marginTop: 8 }}>
+              <span className="badge-tag" style={{ backgroundColor: sleepRiskGauge.badgeBg, color: sleepRiskGauge.color, fontWeight: 700, fontSize: '0.82rem', padding: '4px 10px' }}>
+                {sleepRiskGauge.level}
+              </span>
+            </div>
+            <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', display: 'block', marginTop: 6 }}>
+              {sleepRiskGauge.desc}
+            </span>
+          </div>
+        </div>
+
+        {/* Beverage Presets & Celsius Powder Scale Quick Bar */}
+        <div style={{
+          backgroundColor: 'var(--bg-surface-elevated)',
+          border: '1px solid var(--border-color)',
+          borderRadius: 'var(--border-radius-md)',
+          padding: '12px 16px',
+          marginBottom: 16,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          flexWrap: 'wrap'
+        }}>
+          <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: 4, marginRight: 6 }}>
+            <Coffee size={15} style={{ color: '#F59E0B' }} /> Quick Log:
+          </span>
+
+          <button
+            className="btn btn-secondary"
+            style={{ padding: '5px 10px', fontSize: '0.78rem', border: '1px solid #F59E0B', color: '#F59E0B' }}
+            onClick={() => handleLogCaffeine('Celsius Can', 200)}
+          >
+            ⚡ Celsius Can (200mg)
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            style={{ padding: '5px 10px', fontSize: '0.78rem', border: '1px solid #10B981', color: '#10B981' }}
+            onClick={() => {
+              setIsScaleMode(true);
+              setCaffFormName('Celsius Scale Packet');
+              setCaffFormPowderGrams(5.6);
+              setCaffFormMg(200);
+              setShowCaffeineModal(true);
+            }}
+          >
+            🧪 Celsius Scale / Powder
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            style={{ padding: '5px 10px', fontSize: '0.78rem' }}
+            onClick={() => handleLogCaffeine('Brewed Coffee', 95)}
+          >
+            ☕ Coffee (95mg)
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            style={{ padding: '5px 10px', fontSize: '0.78rem' }}
+            onClick={() => handleLogCaffeine('Espresso Shot', 63)}
+          >
+            ☕ Espresso (63mg)
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            style={{ padding: '5px 10px', fontSize: '0.78rem' }}
+            onClick={() => handleLogCaffeine('Pre-Workout', 250)}
+          >
+            🏋️ Pre-Workout (250mg)
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            style={{ padding: '5px 10px', fontSize: '0.78rem' }}
+            onClick={() => handleLogCaffeine('Green Tea', 45)}
+          >
+            🍵 Tea (45mg)
+          </button>
+        </div>
+
+        {/* Dual Side-by-Side Caffeine Charts */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 16 }}>
+          {/* Chart 1: 24-Hour Pharmacokinetic Decay Line Chart */}
+          <div className="dashboard-card" style={{ marginBottom: 0, padding: '16px' }}>
+            <div className="card-header" style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '0.95rem', margin: 0, display: 'inline-flex', alignItems: 'center' }}>
+                <BatteryCharging size={16} style={{ marginRight: 6, color: '#F59E0B' }} />
+                24-Hour Blood Caffeine Decay Timeline
+                <MetricTooltip
+                  title="Caffeine Half-Life Decay Pharmacokinetics"
+                  description="Models real-time caffeine elimination from your bloodstream over time."
+                  formula="C(t) = C₀ × (0.5)^(t ÷ t_half) [Default t_half = 5 hrs]"
+                  position="top"
+                />
+              </h3>
+            </div>
+            <div style={{ height: 230, position: 'relative', width: '100%' }}>
+              <Line data={caffeineDecayChartData} options={decayChartOptions} />
+            </div>
+          </div>
+
+          {/* Chart 2: 7-Day History Trend vs 400mg Safety Cap */}
+          <div className="dashboard-card" style={{ marginBottom: 0, padding: '16px' }}>
+            <div className="card-header" style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '0.95rem', margin: 0, display: 'inline-flex', alignItems: 'center' }}>
+                <BarChart3 size={16} style={{ marginRight: 6, color: '#0052FF' }} />
+                7-Day Intake History vs Safety Limit ({caffeineSettings.dailyCapMg}mg)
+                <MetricTooltip
+                  title="Daily Intake History"
+                  description="Tracks total daily caffeine mg intake over the past 7 days against your safety threshold."
+                  formula="Sum of caffeine entries per day vs Cap"
+                  position="top"
+                />
+              </h3>
+            </div>
+            <div style={{ height: 230, position: 'relative', width: '100%' }}>
+              <Bar data={caffeineHistoryTrendChartData} options={caffeineHistoryChartOptions} />
+            </div>
+          </div>
+        </div>
+
+        {/* Caffeine History & Log List */}
+        <div className="dashboard-card" style={{ marginBottom: 0, padding: '16px' }}>
+          <h4 style={{ fontSize: '0.9rem', margin: '0 0 12px 0', color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Clock size={15} /> Recent Caffeine Logs
+          </h4>
+
+          {caffeineLogs.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 200, overflowY: 'auto' }}>
+              {caffeineLogs.slice(0, 10).map((log) => {
+                const logDate = new Date(log.timestamp);
+                const dateStr = logDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const timeStr = logDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+                return (
+                  <div key={log.id} style={{
+                    display: 'flex',
+                    justify: 'space-between',
+                    alignItems: 'center',
+                    padding: '8px 12px',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--border-radius-sm)'
+                  }}>
+                    <div>
+                      <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--color-text-primary)' }}>
+                        {log.name}
+                      </span>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginLeft: 8 }}>
+                        {dateStr} at {timeStr} {log.powderGrams ? `• (${log.powderGrams}g scale weight)` : ''}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span className="badge-tag" style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', fontWeight: 600, fontSize: '0.78rem' }}>
+                        +{log.caffeineMg} mg
+                      </span>
+                      <button
+                        className="btn btn-danger"
+                        style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                        onClick={() => handleDeleteCaffeineLog(log.id)}
+                        title="Delete entry"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', margin: 0, textAlign: 'center', padding: '12px 0' }}>
+              No caffeine logged yet. Use the quick presets above to record your first drink!
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* LOG CAFFEINE / CELSIUS SCALE MODAL */}
+      {showCaffeineModal && (
+        <div className="modal-overlay" onClick={() => setShowCaffeineModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <div className="modal-header">
+              <div>
+                <h3 className="modal-title">
+                  {isScaleMode ? '🧪 Celsius Packet Scale Calculator' : '⚡ Log Caffeine Intake'}
+                </h3>
+              </div>
+              <button className="btn-close" onClick={() => setShowCaffeineModal(false)}>×</button>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 14 }}>
+              <label className="form-label">Beverage / Item Name</label>
+              <input
+                type="text"
+                className="form-input"
+                value={caffFormName}
+                onChange={(e) => setCaffFormName(e.target.value)}
+                placeholder="e.g. Celsius Packet, Espresso, Coffee"
+              />
+            </div>
+
+            {/* Mode Toggle: Fixed Mg vs Scale Powder Grams */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+              <button
+                type="button"
+                className={`filter-pill ${!isScaleMode ? 'active' : ''}`}
+                onClick={() => setIsScaleMode(false)}
+                style={{ flex: 1, padding: '6px', fontSize: '0.8rem' }}
+              >
+                Standard Caffeine (mg)
+              </button>
+              <button
+                type="button"
+                className={`filter-pill ${isScaleMode ? 'active' : ''}`}
+                onClick={() => setIsScaleMode(true)}
+                style={{ flex: 1, padding: '6px', fontSize: '0.8rem' }}
+              >
+                🧪 Scale Powder Weight (g)
+              </button>
+            </div>
+
+            {isScaleMode ? (
+              <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '12px 14px', borderRadius: 'var(--border-radius-md)', marginBottom: 16 }}>
+                <div className="form-group" style={{ marginBottom: 10 }}>
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Scale size={14} style={{ color: '#10B981' }} /> Scale Weight (Grams):
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    className="form-input"
+                    value={caffFormPowderGrams}
+                    onChange={(e) => {
+                      const grams = parseFloat(e.target.value) || 0;
+                      setCaffFormPowderGrams(grams);
+                      const calculatedMg = Math.round(grams * (200 / 5.6));
+                      setCaffFormMg(calculatedMg);
+                    }}
+                  />
+                </div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--color-text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Calculated Caffeine (5.6g packet = 200mg):</span>
+                  <span style={{ fontWeight: 700, color: '#10B981', fontSize: '1rem' }}>{caffFormMg} mg</span>
+                </div>
+              </div>
+            ) : (
+              <div className="form-group" style={{ marginBottom: 14 }}>
+                <label className="form-label">Caffeine Amount (mg)</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  value={caffFormMg}
+                  onChange={(e) => setCaffFormMg(Number(e.target.value))}
+                />
+              </div>
+            )}
+
+            <div className="form-group" style={{ marginBottom: 20 }}>
+              <label className="form-label">Consumption Time</label>
+              <input
+                type="time"
+                className="form-input"
+                value={caffFormTime}
+                onChange={(e) => setCaffFormTime(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowCaffeineModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                style={{ backgroundColor: '#F59E0B', borderColor: '#F59E0B', color: '#0F172A', fontWeight: 600 }}
+                onClick={() => handleLogCaffeine(caffFormName, caffFormMg, isScaleMode ? caffFormPowderGrams : null, caffFormTime)}
+              >
+                Confirm Log
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CAFFEINE TARGET & BEDTIME SETTINGS MODAL */}
+      {showCaffeineSettingsModal && (
+        <div className="modal-overlay" onClick={() => setShowCaffeineSettingsModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+            <div className="modal-header">
+              <div>
+                <h3 className="modal-title">⚙️ Caffeine & Sleep Settings</h3>
+              </div>
+              <button className="btn-close" onClick={() => setShowCaffeineSettingsModal(false)}>×</button>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 14 }}>
+              <label className="form-label">Target Bedtime (HH:MM)</label>
+              <input
+                type="time"
+                className="form-input"
+                value={caffeineSettings.targetBedtime}
+                onChange={(e) => setCaffeineSettings(prev => ({ ...prev, targetBedtime: e.target.value }))}
+              />
+              <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
+                Used to project remaining active caffeine in your body at bedtime.
+              </span>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 14 }}>
+              <label className="form-label">Daily Safety Cap (mg)</label>
+              <input
+                type="number"
+                className="form-input"
+                value={caffeineSettings.dailyCapMg}
+                onChange={(e) => setCaffeineSettings(prev => ({ ...prev, dailyCapMg: Number(e.target.value) }))}
+              />
+              <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
+                FDA recommended daily maximum is 400 mg.
+              </span>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 20 }}>
+              <label className="form-label">Caffeine Half-Life (Hours)</label>
+              <input
+                type="number"
+                step="0.5"
+                className="form-input"
+                value={caffeineSettings.halfLifeHours}
+                onChange={(e) => setCaffeineSettings(prev => ({ ...prev, halfLifeHours: Number(e.target.value) }))}
+              />
+              <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
+                Average caffeine metabolic half-life is 5 hours (ranges 3–7 hrs based on genetics).
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowCaffeineSettingsModal(false)}
+              >
+                Save Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* EVENT EDITING MODAL */}
       {activeDetailEvent && (
