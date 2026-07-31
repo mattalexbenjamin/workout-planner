@@ -9,6 +9,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Toolti
 import { Bar, Line } from 'react-chartjs-2';
 import MetricTooltip from '@/components/MetricTooltip';
 import { DEFAULT_HABITS, fetchUserHabitsAndLogs, saveHabitToAdd, saveHabitToDelete, saveHabitCheckToggle } from '@/lib/habits-sync';
+import { DEFAULT_CAFFEINE_SETTINGS, fetchUserCaffeineLogsAndSettings, saveCaffeineLogEntry, deleteCaffeineLogEntry, saveCaffeineSettingsData } from '@/lib/caffeine-sync';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -131,14 +132,14 @@ export default function AnalyticsPage() {
   }, [caffeineSettings]);
 
   // Handle Logging
-  const handleLogCaffeine = (name, mg, powderGrams = null, customTimeStr = null) => {
+  const handleLogCaffeine = async (name, mg, powderGrams = null, customTimeStr = null) => {
     const logDate = new Date();
     if (customTimeStr) {
       const [h, m] = customTimeStr.split(':').map(Number);
       logDate.setHours(h || 0, m || 0, 0, 0);
     }
 
-    const newLog = {
+    const tempLog = {
       id: `caff_${Date.now()}`,
       name: name || 'Caffeine Drink',
       caffeineMg: Number(mg),
@@ -146,12 +147,20 @@ export default function AnalyticsPage() {
       timestamp: logDate.toISOString()
     };
 
-    setCaffeineLogs(prev => [newLog, ...prev]);
     setShowCaffeineModal(false);
+    const savedLog = await saveCaffeineLogEntry(supabase, user, tempLog);
+    setCaffeineLogs(prev => [savedLog, ...prev.filter(l => l.id !== tempLog.id && l.id !== savedLog.id)]);
   };
 
-  const handleDeleteCaffeineLog = (logId) => {
+  const handleDeleteCaffeineLog = async (logId) => {
     setCaffeineLogs(prev => prev.filter(item => item.id !== logId));
+    await deleteCaffeineLogEntry(supabase, user, logId);
+  };
+
+  const handleSaveCaffeineSettings = async (newSettings) => {
+    setCaffeineSettings(newSettings);
+    setShowCaffeineSettingsModal(false);
+    await saveCaffeineSettingsData(supabase, user, newSettings);
   };
 
   // Pharmacokinetic Half-Life Decay Calculations
@@ -384,12 +393,19 @@ export default function AnalyticsPage() {
   useEffect(() => {
     loadAnalyticsData();
     fetchHabitsData();
+    fetchCaffeineData();
   }, [user, session, rangeDays]);
 
   async function fetchHabitsData() {
     const { habits: fetchedHabits, habitLogs: fetchedLogs } = await fetchUserHabitsAndLogs(supabase, user);
     setHabits(fetchedHabits);
     setHabitLogs(fetchedLogs);
+  }
+
+  async function fetchCaffeineData() {
+    const { logs: fetchedLogs, settings: fetchedSettings } = await fetchUserCaffeineLogsAndSettings(supabase, user);
+    setCaffeineLogs(fetchedLogs);
+    setCaffeineSettings(fetchedSettings);
   }
 
   function handleCategorySelect(catKey) {
@@ -2178,7 +2194,7 @@ export default function AnalyticsPage() {
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button
                 className="btn btn-primary"
-                onClick={() => setShowCaffeineSettingsModal(false)}
+                onClick={() => handleSaveCaffeineSettings(caffeineSettings)}
               >
                 Save Settings
               </button>
