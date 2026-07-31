@@ -61,11 +61,13 @@ export default function AnalyticsPage() {
   const [categorySaved, setCategorySaved] = useState(false);
   const [durationSaved, setDurationSaved] = useState(false);
 
-  // Habit Matrix State for Analytics
+  // Habit Matrix & GitHub Grid State for Analytics
   const [habits, setHabits] = useState(DEFAULT_HABITS);
   const [habitLogs, setHabitLogs] = useState({});
   const [newHabitName, setNewHabitName] = useState('');
   const [monthOffset, setMonthOffset] = useState(0); // 0 = current 30-day window, -1 = previous 30 days, +1 = next 30 days
+  const [heatmapMode, setHeatmapMode] = useState('combined'); // 'combined' | 'habits' | 'workouts'
+  const [hoveredHeatmapDay, setHoveredHeatmapDay] = useState(null);
 
   const analyticsTodayRef = useRef(null);
 
@@ -663,6 +665,102 @@ export default function AnalyticsPage() {
     }
   };
 
+  // GitHub-Style 52-Week Contribution Grid Data Computation (365 Days)
+  const githubGridData = React.useMemo(() => {
+    const today = new Date();
+    const currentDayOfWeek = today.getDay(); // 0 = Sun ... 6 = Sat
+
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - (51 * 7 + currentDayOfWeek));
+
+    const weeks = [];
+    let currentWeek = [];
+    const monthHeaders = [];
+    let lastMonth = -1;
+    let totalContributions = 0;
+    let activeDaysCount = 0;
+
+    const totalDays = 364 + currentDayOfWeek + 1;
+
+    for (let i = 0; i < totalDays; i++) {
+      const d = new Date(startDate);
+      d.setDate(startDate.getDate() + i);
+      const dateKey = formatDateKey(d);
+      const dayOfWeek = d.getDay();
+      const monthNum = d.getMonth();
+      const monthName = d.toLocaleDateString('en-US', { month: 'short' });
+
+      const completedHabits = habits.filter((h) => Boolean(habitLogs[`${h.id}_${dateKey}`]));
+
+      const dayWorkouts = combinedEvents.filter((evt) => {
+        const rawDate = evt.date || evt.startDateTime || evt.start?.dateTime || evt.start?.date;
+        return rawDate && String(rawDate).split('T')[0] === dateKey;
+      });
+
+      let score = 0;
+      let level = 0;
+
+      if (heatmapMode === 'habits') {
+        score = completedHabits.length;
+        if (score >= 4) level = 4;
+        else if (score >= 3) level = 3;
+        else if (score >= 2) level = 2;
+        else if (score >= 1) level = 1;
+      } else if (heatmapMode === 'workouts') {
+        score = dayWorkouts.length;
+        if (score >= 3) level = 4;
+        else if (score === 2) level = 3;
+        else if (score === 1) level = 2;
+      } else {
+        score = completedHabits.length + (dayWorkouts.length * 2);
+        if (score >= 5) level = 4;
+        else if (score >= 3) level = 3;
+        else if (score >= 2) level = 2;
+        else if (score >= 1) level = 1;
+      }
+
+      if (score > 0) {
+        totalContributions += score;
+        activeDaysCount++;
+      }
+
+      const dayObj = {
+        dateKey,
+        rawDate: d,
+        dayOfWeek,
+        formattedDate: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+        completedHabits,
+        dayWorkouts,
+        score,
+        level,
+        isToday: dateKey === formatDateKey(new Date())
+      };
+
+      currentWeek.push(dayObj);
+
+      if (dayOfWeek === 0) {
+        if (monthNum !== lastMonth) {
+          monthHeaders.push({ weekIndex: weeks.length, label: monthName });
+          lastMonth = monthNum;
+        }
+      }
+
+      if (dayOfWeek === 6 || i === totalDays - 1) {
+        weeks.push(currentWeek);
+        currentWeek = [];
+      }
+    }
+
+    return {
+      weeks,
+      monthHeaders,
+      totalContributions,
+      activeDaysCount,
+      totalDays
+    };
+  }, [habits, habitLogs, combinedEvents, heatmapMode]);
+
+
   const getMetricData = () => {
     if (volumeMetric === 'instances') {
       return CATEGORY_KEYS.map((k) => categoryInstances[k]);
@@ -999,6 +1097,154 @@ export default function AnalyticsPage() {
             </div>
             <div style={{ height: 240, position: 'relative', width: '100%', minWidth: 0 }}>
               <Bar data={habitComparisonChartData} options={barChartOptions} />
+            </div>
+          </div>
+        </div>
+
+        {/* GITHUB-STYLE 52-WEEK CONTRIBUTION CALENDAR GRID */}
+        <div className="dashboard-card" style={{ marginTop: 20, marginBottom: 0, padding: '18px 20px' }}>
+          <div className="card-header" style={{ marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <h3 style={{ fontSize: '1.05rem', margin: 0, display: 'inline-flex', alignItems: 'center' }}>
+                <CalendarIcon size={18} style={{ marginRight: 8, color: 'var(--color-accent)' }} />
+                NEXUS 52-Week Life & Activity Heatmap
+                <MetricTooltip
+                  title="GitHub-Style Activity Calendar"
+                  description="52-week contribution matrix tracking daily habit compliance and athletic workouts over the past 365 days."
+                  formula="Intensity: ⬜ 0 Activity | 🟩 1-2 | 🟩 3-4 | 🟩 5+ (Combined)"
+                  position="top"
+                />
+              </h3>
+              <span className="card-description" style={{ display: 'block', marginTop: 2 }}>
+                <strong>{githubGridData.totalContributions}</strong> activity points across <strong>{githubGridData.activeDaysCount}</strong> active days in the last 365 days.
+              </span>
+            </div>
+
+            {/* Heatmap Mode Switcher Filter Pills */}
+            <div className="feed-filter-bar" style={{ margin: 0 }}>
+              <button
+                className={`filter-pill ${heatmapMode === 'combined' ? 'active' : ''}`}
+                onClick={() => setHeatmapMode('combined')}
+                style={{ padding: '4px 10px', fontSize: '0.76rem' }}
+              >
+                🌟 Combined Activity
+              </button>
+              <button
+                className={`filter-pill ${heatmapMode === 'habits' ? 'active' : ''}`}
+                onClick={() => setHeatmapMode('habits')}
+                style={{ padding: '4px 10px', fontSize: '0.76rem' }}
+              >
+                Habits Only
+              </button>
+              <button
+                className={`filter-pill ${heatmapMode === 'workouts' ? 'active' : ''}`}
+                onClick={() => setHeatmapMode('workouts')}
+                style={{ padding: '4px 10px', fontSize: '0.76rem' }}
+              >
+                🏋️ Workouts Only
+              </button>
+            </div>
+          </div>
+
+          {/* GitHub Grid Scroll Container */}
+          <div className="github-grid-scroll-wrapper" style={{ overflowX: 'auto', paddingBottom: 6 }}>
+            <div className="github-grid-container" style={{ minWidth: 720, paddingTop: 4 }}>
+              {/* Month Label Header Row */}
+              <div style={{ display: 'flex', marginLeft: 28, marginBottom: 6, height: 16, position: 'relative' }}>
+                {githubGridData.monthHeaders.map((mh, idx) => (
+                  <span
+                    key={idx}
+                    style={{
+                      position: 'absolute',
+                      left: mh.weekIndex * 13.5,
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      color: 'var(--color-text-secondary)',
+                    }}
+                  >
+                    {mh.label}
+                  </span>
+                ))}
+              </div>
+
+              {/* Grid Body (Weekday Labels + 52 Weeks) */}
+              <div style={{ display: 'flex', gap: 3 }}>
+                {/* Weekday Labels (Mon, Wed, Fri) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, width: 24, fontSize: '0.65rem', color: 'var(--color-text-muted)', paddingTop: 1 }}>
+                  <span style={{ height: 11, lineHeight: '11px' }}></span>
+                  <span style={{ height: 11, lineHeight: '11px' }}>Mon</span>
+                  <span style={{ height: 11, lineHeight: '11px' }}></span>
+                  <span style={{ height: 11, lineHeight: '11px' }}>Wed</span>
+                  <span style={{ height: 11, lineHeight: '11px' }}></span>
+                  <span style={{ height: 11, lineHeight: '11px' }}>Fri</span>
+                  <span style={{ height: 11, lineHeight: '11px' }}></span>
+                </div>
+
+                {/* 52 Columns of Weeks */}
+                <div style={{ display: 'flex', gap: 3 }}>
+                  {githubGridData.weeks.map((week, wIdx) => (
+                    <div key={wIdx} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      {week.map((dayObj) => (
+                        <div
+                          key={dayObj.dateKey}
+                          className={`github-cell level-${dayObj.level} ${dayObj.isToday ? 'today-cell' : ''}`}
+                          onMouseEnter={() => setHoveredHeatmapDay(dayObj)}
+                          onMouseLeave={() => setHoveredHeatmapDay(null)}
+                          style={{
+                            width: 11,
+                            height: 11,
+                            borderRadius: 2,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Grid Legend & Live Hover Info Bar */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: 10 }}>
+            {/* Live Hover Info Popover Banner */}
+            <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', minHeight: 20 }}>
+              {hoveredHeatmapDay ? (
+                <span>
+                  <strong>{hoveredHeatmapDay.formattedDate}</strong> — {' '}
+                  {heatmapMode === 'habits' ? (
+                    <span><strong>{hoveredHeatmapDay.completedHabits.length}</strong> habits checked</span>
+                  ) : heatmapMode === 'workouts' ? (
+                    <span><strong>{hoveredHeatmapDay.dayWorkouts.length}</strong> workout sessions</span>
+                  ) : (
+                    <span>
+                      <strong>{hoveredHeatmapDay.completedHabits.length}</strong> habits checked, {' '}
+                      <strong>{hoveredHeatmapDay.dayWorkouts.length}</strong> workouts logged
+                    </span>
+                  )}
+                  {hoveredHeatmapDay.dayWorkouts.length > 0 && (
+                    <span style={{ color: 'var(--color-accent)', marginLeft: 6 }}>
+                      ({hoveredHeatmapDay.dayWorkouts.map((w) => w.workout_name || w.summary).join(', ')})
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <span style={{ fontStyle: 'italic', color: 'var(--color-text-muted)' }}>
+                  Hover over any square above to view detailed daily habits & workouts.
+                </span>
+              )}
+            </div>
+
+            {/* Intensity Scale Legend */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
+              <span>Less</span>
+              <div className="github-cell level-0" style={{ width: 11, height: 11, borderRadius: 2 }} title="0 Activity" />
+              <div className="github-cell level-1" style={{ width: 11, height: 11, borderRadius: 2 }} title="Low Activity" />
+              <div className="github-cell level-2" style={{ width: 11, height: 11, borderRadius: 2 }} title="Moderate Activity" />
+              <div className="github-cell level-3" style={{ width: 11, height: 11, borderRadius: 2 }} title="High Activity" />
+              <div className="github-cell level-4" style={{ width: 11, height: 11, borderRadius: 2 }} title="Peak Activity" />
+              <span>More</span>
             </div>
           </div>
         </div>
