@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { refreshGoogleToken } from '@/lib/gcalendar';
 
 const AuthContext = createContext({
   user: null,
@@ -22,7 +23,6 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Recover cached provider_token if available
     if (typeof window !== 'undefined') {
       const cached = localStorage.getItem('nexus_provider_token');
       if (cached) setProviderToken(cached);
@@ -30,15 +30,21 @@ export function AuthProvider({ children }) {
 
     async function initAuth() {
       const { data: { session: activeSession } } = await supabase.auth.getSession();
-      
+
       if (activeSession) {
         setSession(activeSession);
         setUser(activeSession.user || null);
-        if (activeSession.provider_token) {
-          setProviderToken(activeSession.provider_token);
-          localStorage.setItem('nexus_provider_token', activeSession.provider_token);
+        await syncSessionTokens(activeSession);
+        const fetchedProfile = await fetchProfile(activeSession.user.id);
+
+        // Auto-refresh Google access token if current access token missing/expired but refresh token exists
+        const currentToken = activeSession.provider_token || (typeof window !== 'undefined' ? localStorage.getItem('nexus_provider_token') : null);
+        const refreshToken = activeSession.provider_refresh_token || (typeof window !== 'undefined' ? localStorage.getItem('nexus_provider_refresh_token') : null) || fetchedProfile?.gcal_refresh_token;
+
+        if (refreshToken && !currentToken) {
+          const newToken = await refreshGoogleToken(refreshToken);
+          if (newToken) setProviderToken(newToken);
         }
-        await fetchProfile(activeSession.user.id);
       }
 
       setLoading(false);
@@ -47,13 +53,11 @@ export function AuthProvider({ children }) {
         setSession(newSession);
         setUser(newSession?.user || null);
 
-        if (newSession?.provider_token) {
-          setProviderToken(newSession.provider_token);
-          localStorage.setItem('nexus_provider_token', newSession.provider_token);
-        }
-
-        if (newSession?.user) {
-          await fetchProfile(newSession.user.id);
+        if (newSession) {
+          await syncSessionTokens(newSession);
+          if (newSession.user) {
+            await fetchProfile(newSession.user.id);
+          }
         } else {
           setProfile(null);
         }
@@ -66,6 +70,27 @@ export function AuthProvider({ children }) {
     initAuth();
   }, [supabase]);
 
+  async function syncSessionTokens(sess) {
+    if (!sess) return;
+    if (sess.provider_token) {
+      setProviderToken(sess.provider_token);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('nexus_provider_token', sess.provider_token);
+      }
+    }
+    if (sess.provider_refresh_token) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('nexus_provider_refresh_token', sess.provider_refresh_token);
+      }
+      if (sess.user) {
+        await supabase
+          .from('profiles')
+          .update({ gcal_refresh_token: sess.provider_refresh_token })
+          .eq('id', sess.user.id);
+      }
+    }
+  }
+
   async function fetchProfile(userId) {
     try {
       const { data, error } = await supabase
@@ -76,10 +101,12 @@ export function AuthProvider({ children }) {
 
       if (!error && data) {
         setProfile(data);
+        return data;
       }
     } catch (err) {
       console.error('Error fetching user profile:', err);
     }
+    return null;
   }
 
   async function signInWithGoogle() {
@@ -105,6 +132,7 @@ export function AuthProvider({ children }) {
     setProfile(null);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('nexus_provider_token');
+      localStorage.removeItem('nexus_provider_refresh_token');
     }
   }
 

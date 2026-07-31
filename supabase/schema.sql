@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   ai_provider TEXT DEFAULT 'gemini',
   selected_calendar_id TEXT DEFAULT 'primary',
   auto_sync_gcal BOOLEAN DEFAULT true,
+  gcal_refresh_token TEXT DEFAULT '',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
