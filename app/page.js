@@ -744,14 +744,14 @@ export default function TodayPage() {
             <div className="form-group" style={{ marginBottom: 14 }}>
               <label className="form-label">Target Session Duration</label>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {[15, 30, 45, 60, 90].map(mins => (
+                {[15, 30, 45, 60, 90, 120, 180, 240].map(mins => (
                   <button
                     key={mins}
                     type="button"
                     className={`filter-pill ${aiDuration === mins ? 'active' : ''}`}
                     onClick={() => setAiDuration(mins)}
                   >
-                    ⏱️ {mins} Mins
+                    ⏱️ {mins >= 60 ? `${mins / 60}h` : `${mins}m`}
                   </button>
                 ))}
               </div>

@@ -564,7 +564,13 @@ export default function CalendarFeedPage() {
                   <option value={75}>75 Minutes (1 hr 15m)</option>
                   <option value={90}>90 Minutes (1.5 hrs)</option>
                   <option value={120}>120 Minutes (2 hrs)</option>
-                  {!([15, 30, 45, 60, 75, 90, 120].includes(Number(activeDetailEvent.duration))) && (
+                  <option value={150}>150 Minutes (2.5 hrs)</option>
+                  <option value={180}>180 Minutes (3 hrs)</option>
+                  <option value={210}>210 Minutes (3.5 hrs)</option>
+                  <option value={240}>240 Minutes (4 hrs)</option>
+                  <option value={300}>300 Minutes (5 hrs)</option>
+                  <option value={360}>360 Minutes (6 hrs)</option>
+                  {!([15, 30, 45, 60, 75, 90, 120, 150, 180, 210, 240, 300, 360].includes(Number(activeDetailEvent.duration))) && (
                     <option value={activeDetailEvent.duration}>
                       {activeDetailEvent.duration} Minutes (Custom)
                     </option>
