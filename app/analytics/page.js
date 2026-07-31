@@ -637,7 +637,7 @@ export default function AnalyticsPage() {
           <table className="habit-table">
             <thead>
               <tr>
-                <th className="sticky-col-left" style={{ minWidth: 200 }}>Habit / Routine</th>
+                <th className="sticky-col-left" style={{ minWidth: 140 }}>Habit / Routine</th>
                 {analyticsHabitDates.map((d) => (
                   <th
                     key={d.dateKey}
@@ -645,10 +645,10 @@ export default function AnalyticsPage() {
                     className={`date-col-header ${d.isToday ? 'is-today' : ''}`}
                   >
                     <div>{d.dayLabel}</div>
-                    <div style={{ fontSize: '0.88rem', fontWeight: 900 }}>{d.numLabel}</div>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 900 }}>{d.numLabel}</div>
                   </th>
                 ))}
-                <th className="sticky-col-right" style={{ minWidth: 220, textAlign: 'center' }}>Deep Habit Analytics</th>
+                <th className="sticky-col-right" style={{ minWidth: 160, textAlign: 'center' }}>Deep Habit Analytics</th>
               </tr>
             </thead>
             <tbody>
@@ -663,9 +663,9 @@ export default function AnalyticsPage() {
                           title="Delete Habit"
                           onClick={() => handleDeleteHabit(habit.id)}
                         >
-                          <Trash2 size={15} />
+                          <Trash2 size={13} />
                         </button>
-                        <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>{habit.name}</span>
+                        <span className="habit-name-text" title={habit.name}>{habit.name}</span>
                       </div>
                     </td>
                     {analyticsHabitDates.map((d) => {
@@ -677,22 +677,22 @@ export default function AnalyticsPage() {
                             onClick={() => toggleHabitCheck(habit.id, d.dateKey)}
                             title={`${habit.name} on ${d.dateKey}`}
                           >
-                            <Check size={16} strokeWidth={3} />
+                            <Check size={14} strokeWidth={3} />
                           </button>
                         </td>
                       );
                     })}
                     <td className="sticky-col-right" style={{ textAlign: 'center' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
-                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
                           <span className="streak-badge" title="Current Active Streak">
                             🔥 {deepStats.currentStreak}d
                           </span>
-                          <span className="badge-tag gold" style={{ fontSize: '0.7rem' }} title="Longest All-Time Streak">
+                          <span className="badge-tag gold" style={{ fontSize: '0.65rem', padding: '2px 5px' }} title="Longest All-Time Streak">
                             🏆 Best: {deepStats.longestStreak}d
                           </span>
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'flex', gap: 8 }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)', display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
                           <span><strong>{deepStats.thirtyDaySuccessRate}%</strong> (30d)</span>
                           <span>• Top: <strong>{deepStats.bestDay}</strong></span>
                         </div>

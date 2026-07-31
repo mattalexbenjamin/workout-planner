@@ -428,7 +428,7 @@ export default function TodayPage() {
           <table className="habit-table">
             <thead>
               <tr>
-                <th className="sticky-col-left" style={{ minWidth: 200 }}>Habit / Routine</th>
+                <th className="sticky-col-left" style={{ minWidth: 140 }}>Habit / Routine</th>
                 {datesWindow.map(d => (
                   <th
                     key={d.dateKey}
@@ -436,10 +436,10 @@ export default function TodayPage() {
                     className={`date-col-header ${d.isToday ? 'is-today' : ''}`}
                   >
                     <div>{d.dayLabel}</div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 900 }}>{d.numLabel}</div>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 900 }}>{d.numLabel}</div>
                   </th>
                 ))}
-                <th className="sticky-col-right" style={{ minWidth: 140, textAlign: 'center' }}>Stats & Streaks</th>
+                <th className="sticky-col-right" style={{ minWidth: 120, textAlign: 'center' }}>Stats & Streaks</th>
               </tr>
             </thead>
             <tbody>
@@ -454,9 +454,9 @@ export default function TodayPage() {
                           title="Delete Habit"
                           onClick={() => handleDeleteHabit(habit.id)}
                         >
-                          <Trash2 size={15} />
+                          <Trash2 size={13} />
                         </button>
-                        <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>{habit.name}</span>
+                        <span className="habit-name-text" title={habit.name}>{habit.name}</span>
                       </div>
                     </td>
                     {datesWindow.map(d => {
@@ -468,13 +468,13 @@ export default function TodayPage() {
                             onClick={() => toggleHabitCheck(habit.id, d.dateKey)}
                             title={`${habit.name} on ${d.dateKey}`}
                           >
-                            <Check size={16} strokeWidth={3} />
+                            <Check size={14} strokeWidth={3} />
                           </button>
                         </td>
                       );
                     })}
                     <td className="sticky-col-right" style={{ textAlign: 'center' }}>
-                      <Link href="/analytics#habit-matrix" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      <Link href="/analytics#habit-matrix" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                         <span className="streak-badge" title="Current Active Streak (Click to view full analytics)">
                           🔥 {stats.streak}d
                         </span>
