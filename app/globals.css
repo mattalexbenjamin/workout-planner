@@ -1149,8 +1149,8 @@ h1, h2, h3, h4, h5, h6 {
 
 .habit-matrix-wrapper {
   overflow-x: auto;
-  overflow-y: auto;
-  max-height: 420px;
+  overflow-y: visible;
+  max-height: none;
   position: relative;
   border-radius: 8px;
   border: 1px solid var(--border-color);

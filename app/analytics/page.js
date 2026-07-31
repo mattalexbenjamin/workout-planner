@@ -732,7 +732,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Matrix Scrollable Container */}
-        <div className="habit-matrix-wrapper" style={{ maxHeight: 480 }}>
+        <div className="habit-matrix-wrapper">
           <table className="habit-table">
             <thead>
               <tr>
