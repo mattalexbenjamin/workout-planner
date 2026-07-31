@@ -7,6 +7,7 @@ import { fetchCalendarEvents, deleteGoogleCalendarEvent, updateGoogleCalendarEve
 import { BarChart3, RefreshCw, Clock, Tag, Trash2, ChevronRight, CheckCircle, ExternalLink, Calendar as CalendarIcon, Dumbbell, ChevronLeft, Check, Flame, Award, PlusCircle } from 'lucide-react';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PointElement, LineElement } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
+import MetricTooltip from '@/components/MetricTooltip';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -641,7 +642,15 @@ export default function AnalyticsPage() {
       <div className="dashboard-card">
         <div className="card-header" style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
           <div>
-            <h3>Multi-Sport Volume Distribution ({volumeMetric === 'instances' ? 'Sessions' : volumeMetric === 'days' ? 'Days' : 'Hours'})</h3>
+            <h3 style={{ display: 'inline-flex', alignItems: 'center' }}>
+              Multi-Sport Volume Distribution ({volumeMetric === 'instances' ? 'Sessions' : volumeMetric === 'days' ? 'Days' : 'Hours'})
+              <MetricTooltip
+                title="Multi-Sport Volume Metric"
+                description="Toggle between ⏱️ Total Hours, 🔢 Session Instances, and 📅 Unique Active Days to analyze training volume across disciplines."
+                formula="Hours = Total Mins ÷ 60 | Instances = Sessions Count | Days = Unique Active Dates"
+                position="top"
+              />
+            </h3>
             <span className="card-description">Click any bar below to view and manage events for that category.</span>
           </div>
 
@@ -686,7 +695,15 @@ export default function AnalyticsPage() {
       <div className="habit-matrix-card" id="habit-matrix" style={{ marginTop: 24, marginBottom: 24 }}>
         <div className="card-header" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h3>30-Day Expanded Habit & Routine Matrix</h3>
+            <h3 style={{ display: 'inline-flex', alignItems: 'center' }}>
+              30-Day Expanded Habit & Routine Matrix
+              <MetricTooltip
+                title="30-Day Habit Matrix & Analytics"
+                description="Tracks your 30-day compliance, current streak, all-time record streak, and identifies your peak performance day of the week."
+                formula="30-Day Compliance = (Days Logged ÷ 30) × 100%"
+                position="top"
+              />
+            </h3>
             <span className="card-description">Comprehensive 30-day view with historical streak tracking, longest all-time streak, monthly success rate, and best day of week.</span>
           </div>
 

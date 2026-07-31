@@ -12,6 +12,7 @@ import {
   Flame, Dumbbell, Trash2, Check, Target, Zap, ChevronDown, ChevronUp,
   Bot, Wand2, Sliders
 } from 'lucide-react';
+import MetricTooltip from '@/components/MetricTooltip';
 
 const DEFAULT_HABITS = [
   { id: 'hydration', name: '💧 Hydration (3L+)' },
@@ -382,7 +383,22 @@ export default function TodayPage() {
             <div className="readiness-score-box" style={{ '--score-pct': readinessScore }}>
               <div className="readiness-score-inner">
                 <span className="readiness-val">{readinessScore}%</span>
-                <span className="readiness-lbl">READINESS</span>
+                <span className="readiness-lbl" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                  READINESS
+                  <MetricTooltip
+                    title="NEXUS Readiness Score"
+                    description="Measures your daily physical capacity and lifestyle consistency to guide training intensity."
+                    formula="60% Physical Soreness Index + 40% Daily Habit Compliance"
+                    tiers={[
+                      { range: '80 - 100%', label: 'High Readiness', color: '#10B981', text: 'Optimal for heavy strength loading & high-intensity sessions.' },
+                      { range: '60 - 79%', label: 'Moderate Readiness', color: '#F59E0B', text: 'Good capacity for steady work. Keep volume controlled.' },
+                      { range: '0 - 59%', label: 'Recovery Mode', color: '#EF4444', text: 'Prioritize sleep, hydration, mobility, and active rest.' }
+                    ]}
+                    position="left"
+                    iconSize={13}
+                    style={{ marginLeft: 4 }}
+                  />
+                </span>
               </div>
             </div>
           </div>
@@ -394,7 +410,14 @@ export default function TodayPage() {
         <div className="card-header" style={{ marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Target size={18} color="var(--color-accent)" />
-            <h3 style={{ fontSize: '1rem' }}>#1 Priority Directive For Today</h3>
+            <h3 style={{ fontSize: '1rem', display: 'inline-flex', alignItems: 'center' }}>
+              #1 Priority Directive For Today
+              <MetricTooltip
+                title="#1 Priority Directive"
+                description="Your single most vital objective for today. Setting a clear daily directive focuses your cognitive energy on high-impact actions."
+                position="top"
+              />
+            </h3>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -415,7 +438,15 @@ export default function TodayPage() {
       <div className="habit-matrix-card">
         <div className="card-header" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h3>Habit & Routine Matrix</h3>
+            <h3 style={{ display: 'inline-flex', alignItems: 'center' }}>
+              Habit & Routine Matrix
+              <MetricTooltip
+                title="Habit & Routine Matrix"
+                description="Tracks daily lifestyle behaviors (hydration, sleep, deep work, nutrition). Completing daily habits contributes 40% directly toward your Readiness Score."
+                formula="Habit Score = (Habits Completed Today ÷ Total Active Habits) × 100%"
+                position="top"
+              />
+            </h3>
             <span className="card-description">Track daily routines horizontally across dates with live streak metrics.</span>
           </div>
           <Link href="/analytics#habit-matrix" className="btn btn-secondary" style={{ fontSize: '0.78rem', padding: '4px 10px', whiteSpace: 'nowrap' }}>
@@ -439,7 +470,15 @@ export default function TodayPage() {
                     <div style={{ fontSize: '0.82rem', fontWeight: 900 }}>{d.numLabel}</div>
                   </th>
                 ))}
-                <th className="sticky-col-right" style={{ minWidth: 120, textAlign: 'center' }}>Stats & Streaks</th>
+                <th className="sticky-col-right" style={{ minWidth: 120, textAlign: 'center' }}>
+                  Stats & Streaks
+                  <MetricTooltip
+                    title="Habit Streaks & Compliance"
+                    description="🔥 Streak shows consecutive active days completed counting back from today. 📈 Stats reflect total completed instances."
+                    position="left"
+                    iconSize={13}
+                  />
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -511,9 +550,15 @@ export default function TodayPage() {
         <div className="dashboard-card highlighted">
           <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
             <div>
-              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-accent)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-accent)', textTransform: 'uppercase', letterSpacing: '1px', display: 'inline-flex', alignItems: 'center' }}>
                 <Zap size={14} style={{ display: 'inline', marginRight: 4 }} />
                 NEXUS Adaptive Recommended Session
+                <MetricTooltip
+                  title="Adaptive Recommendation Engine"
+                  description="Analyzes your current readiness score, muscle soreness snapshots, and target training frequency to auto-select or generate the safest and most efficient workout."
+                  position="top"
+                  iconSize={13}
+                />
               </span>
               <h3>{recommendation.name}</h3>
             </div>
@@ -571,7 +616,15 @@ export default function TodayPage() {
           style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
         >
           <div>
-            <h3>Physical Readiness & Muscle Soreness</h3>
+            <h3 style={{ display: 'inline-flex', alignItems: 'center' }}>
+              Physical Readiness & Muscle Soreness
+              <MetricTooltip
+                title="Muscle Soreness & Fatigue Index"
+                description="Rate muscle soreness on a 1 (Fresh) to 5 (Extremely Sore) scale across core muscle groups. Physical soreness dictates 60% of your Readiness Score."
+                formula="Physical Score = Max(0, 100 - (Sum of Soreness Sliders - 4) × 6)"
+                position="top"
+              />
+            </h3>
             <span className="card-description">Fine-tune body part soreness sliders to adapt training load.</span>
           </div>
           <button className="btn-secondary" style={{ padding: '6px 10px', borderRadius: '50%' }}>
