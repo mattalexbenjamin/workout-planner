@@ -4,9 +4,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { fetchCalendarEvents, deleteGoogleCalendarEvent, updateGoogleCalendarEventDuration, getSavedCalendarId } from '@/lib/gcalendar';
-import { BarChart3, RefreshCw, Clock, Tag, Trash2, ChevronRight, CheckCircle, ExternalLink, Calendar as CalendarIcon, Dumbbell, ChevronLeft, Check, Flame, Award, PlusCircle } from 'lucide-react';
+import { BarChart3, RefreshCw, Clock, Tag, Trash2, ChevronRight, CheckCircle, ExternalLink, Calendar as CalendarIcon, Dumbbell, ChevronLeft, Check, Flame, Award, PlusCircle, Sparkles, TrendingUp, Activity, Zap, Target } from 'lucide-react';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PointElement, LineElement } from 'chart.js';
-import { Bar } from 'react-chartjs-2';
+import { Bar, Line } from 'react-chartjs-2';
 import MetricTooltip from '@/components/MetricTooltip';
 import { DEFAULT_HABITS, fetchUserHabitsAndLogs, saveHabitToAdd, saveHabitToDelete, saveHabitCheckToggle } from '@/lib/habits-sync';
 
@@ -446,6 +446,223 @@ export default function AnalyticsPage() {
     other: '#64748B'
   };
 
+  // Habit Suite Calculations across rangeDays (30/90/240/365)
+  const habitAnalyticsSuite = React.useMemo(() => {
+    const today = new Date();
+    const rangeDates = [];
+    const dateKeysSet = new Set();
+
+    for (let i = rangeDays - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateKey = formatDateKey(d);
+      const monthDayStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      rangeDates.push({ dateKey, label: monthDayStr, rawDate: d });
+      dateKeysSet.add(dateKey);
+    }
+
+    const totalActiveHabits = habits.length;
+    let totalPossibleChecks = 0;
+    let totalActualChecks = 0;
+    let perfectDays = 0;
+
+    const trendLabels = [];
+    const trendRates = [];
+    const step = rangeDays > 120 ? 7 : rangeDays > 60 ? 3 : 1;
+
+    rangeDates.forEach((d, index) => {
+      let dayCompleted = 0;
+      habits.forEach((h) => {
+        if (habitLogs[`${h.id}_${d.dateKey}`]) {
+          dayCompleted++;
+          totalActualChecks++;
+        }
+      });
+
+      totalPossibleChecks += totalActiveHabits;
+
+      if (totalActiveHabits > 0 && dayCompleted === totalActiveHabits) {
+        perfectDays++;
+      }
+
+      const dailyRate = totalActiveHabits > 0 ? Math.round((dayCompleted / totalActiveHabits) * 100) : 0;
+
+      if (index % step === 0 || index === rangeDates.length - 1) {
+        trendLabels.push(d.label);
+        trendRates.push(dailyRate);
+      }
+    });
+
+    const overallComplianceRate = totalPossibleChecks > 0 ? Math.round((totalActualChecks / totalPossibleChecks) * 100) : 0;
+
+    const perHabitList = habits.map((h) => {
+      let count = 0;
+      rangeDates.forEach((d) => {
+        if (habitLogs[`${h.id}_${d.dateKey}`]) count++;
+      });
+      const rate = rangeDates.length > 0 ? Math.round((count / rangeDates.length) * 100) : 0;
+      const cleanName = h.name.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, '');
+      return {
+        id: h.id,
+        name: h.name,
+        shortName: cleanName || h.name,
+        complianceRate: rate,
+        totalChecks: count
+      };
+    });
+
+    let topStreakHabit = { name: 'None', streak: 0 };
+    habits.forEach((h) => {
+      let streak = 0;
+      for (let i = 0; i < 90; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateKey = formatDateKey(d);
+        if (habitLogs[`${h.id}_${dateKey}`]) {
+          streak++;
+        } else if (i > 0) {
+          break;
+        }
+      }
+      if (streak > topStreakHabit.streak) {
+        topStreakHabit = { name: h.name, streak };
+      }
+    });
+
+    const workoutDateKeys = new Set();
+    combinedEvents.forEach((evt) => {
+      const rawDate = evt.date || evt.startDateTime || evt.start?.dateTime || evt.start?.date;
+      if (rawDate) {
+        const dateKey = String(rawDate).split('T')[0];
+        if (dateKeysSet.has(dateKey)) {
+          workoutDateKeys.add(dateKey);
+        }
+      }
+    });
+
+    let workoutDaysWithHighHabits = 0;
+    workoutDateKeys.forEach((dKey) => {
+      let count = 0;
+      habits.forEach((h) => {
+        if (habitLogs[`${h.id}_${dKey}`]) count++;
+      });
+      if (count >= 3 || (totalActiveHabits > 0 && count / totalActiveHabits >= 0.5)) {
+        workoutDaysWithHighHabits++;
+      }
+    });
+
+    const totalWorkoutDays = workoutDateKeys.size;
+    const synergyScore = totalWorkoutDays > 0 ? Math.round((workoutDaysWithHighHabits / totalWorkoutDays) * 100) : 0;
+
+    let synergyInsight = `On workout days over the last ${rangeDays} days, you hit 3+ core habits on ${synergyScore}% of your active training days!`;
+    if (synergyScore >= 75) {
+      synergyInsight = `🔥 Exceptional Synergy! You completed your core routines on ${synergyScore}% of training days. Consistency in nutrition, sleep & hydration directly fuels your peak performance.`;
+    } else if (synergyScore >= 50) {
+      synergyInsight = `⚡ Solid Routine Synergy! You maintained high habit compliance on ${synergyScore}% of workout days. Elevate sleep & hydration to unlock even higher energy levels.`;
+    } else if (totalWorkoutDays > 0) {
+      synergyInsight = `💡 Growth Opportunity: You completed core habits on ${synergyScore}% of workout days. Checking habits on training days helps prevent burnout and speeds up recovery.`;
+    }
+
+    return {
+      overallComplianceRate,
+      perfectDays,
+      topStreakHabit,
+      synergyScore,
+      synergyInsight,
+      trendLabels,
+      trendRates,
+      perHabitList
+    };
+  }, [habits, habitLogs, rangeDays, combinedEvents]);
+
+  const dailyComplianceTrendChartData = {
+    labels: habitAnalyticsSuite.trendLabels,
+    datasets: [
+      {
+        label: 'Daily Habit Compliance %',
+        data: habitAnalyticsSuite.trendRates,
+        borderColor: '#10B981',
+        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+        borderWidth: 2.5,
+        pointRadius: habitAnalyticsSuite.trendRates.length > 60 ? 0 : 3,
+        pointHoverRadius: 5,
+        pointBackgroundColor: '#10B981',
+        fill: true,
+        tension: 0.3
+      }
+    ]
+  };
+
+  const lineChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (context) => `${context.parsed.y}% Habits Completed`
+        }
+      }
+    },
+    scales: {
+      y: {
+        min: 0,
+        max: 100,
+        title: { display: true, text: 'Compliance %', color: '#94A3B8' },
+        ticks: { color: '#94A3B8', callback: (val) => `${val}%` },
+        grid: { color: '#E2E8F0' }
+      },
+      x: {
+        ticks: { color: '#94A3B8', maxTicksLimit: 10 },
+        grid: { display: false }
+      }
+    }
+  };
+
+  const habitComparisonChartData = {
+    labels: habitAnalyticsSuite.perHabitList.map((h) => h.shortName),
+    datasets: [
+      {
+        label: 'Compliance Rate %',
+        data: habitAnalyticsSuite.perHabitList.map((h) => h.complianceRate),
+        backgroundColor: habitAnalyticsSuite.perHabitList.map((h) =>
+          h.complianceRate >= 75 ? '#10B981' : h.complianceRate >= 45 ? '#0052FF' : '#F59E0B'
+        ),
+        borderRadius: 6,
+        borderWidth: 0
+      }
+    ]
+  };
+
+  const barChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (context) => {
+            const item = habitAnalyticsSuite.perHabitList[context.dataIndex];
+            return item ? `${item.name}: ${context.parsed.y}% (${item.totalChecks} days)` : `${context.parsed.y}%`;
+          }
+        }
+      }
+    },
+    scales: {
+      y: {
+        min: 0,
+        max: 100,
+        title: { display: true, text: 'Compliance %', color: '#94A3B8' },
+        ticks: { color: '#94A3B8', callback: (val) => `${val}%` },
+        grid: { color: '#E2E8F0' }
+      },
+      x: {
+        ticks: { color: '#94A3B8' },
+        grid: { display: false }
+      }
+    }
+  };
+
   const getMetricData = () => {
     if (volumeMetric === 'instances') {
       return CATEGORY_KEYS.map((k) => categoryInstances[k]);
@@ -655,6 +872,135 @@ export default function AnalyticsPage() {
 
         <div style={{ height: 280, position: 'relative', cursor: 'pointer' }}>
           <Bar data={chartData} options={chartOptions} />
+        </div>
+      </div>
+
+      {/* HABITS & ROUTINES ANALYTICS HUB */}
+      <div className="habit-analytics-hub" style={{ marginTop: 28, marginBottom: 24 }}>
+        <div className="card-header" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <h2 style={{ display: 'inline-flex', alignItems: 'center', fontSize: '1.35rem', color: 'var(--color-text-primary)' }}>
+                <Sparkles size={22} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 8, color: 'var(--color-accent)' }} />
+                Habits & Routines Analytics Hub
+              </h2>
+              <span className="card-description" style={{ display: 'block', marginTop: 2 }}>
+                Comprehensive habit compliance metrics, habit-workout synergy correlation, daily trend analytics, and habit comparison.
+              </span>
+            </div>
+            <span className="badge-tag blue" style={{ fontSize: '0.78rem', padding: '4px 10px' }}>
+              Range: Last {rangeDays} Days
+            </span>
+          </div>
+        </div>
+
+        {/* 4 Habit Summary KPI Cards Grid */}
+        <div className="habit-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 16 }}>
+          <div className="dashboard-card" style={{ marginBottom: 0, padding: '14px 16px' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Activity size={14} style={{ color: 'var(--color-accent)' }} /> Habit Compliance Rate
+            </span>
+            <h2 style={{ fontSize: '1.8rem', color: 'var(--color-accent)', marginTop: 6, marginBottom: 2 }}>
+              {habitAnalyticsSuite.overallComplianceRate}%
+            </h2>
+            <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Over last {rangeDays} days</span>
+          </div>
+
+          <div className="dashboard-card" style={{ marginBottom: 0, padding: '14px 16px' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <CheckCircle size={14} style={{ color: 'var(--color-success)' }} /> Perfect Habit Days
+            </span>
+            <h2 style={{ fontSize: '1.8rem', color: 'var(--color-success)', marginTop: 6, marginBottom: 2 }}>
+              {habitAnalyticsSuite.perfectDays} days
+            </h2>
+            <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>100% habits completed</span>
+          </div>
+
+          <div className="dashboard-card" style={{ marginBottom: 0, padding: '14px 16px' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Flame size={14} style={{ color: '#F59E0B' }} /> Top Active Habit Streak
+            </span>
+            <h2 style={{ fontSize: '1.4rem', color: '#F59E0B', marginTop: 8, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              🔥 {habitAnalyticsSuite.topStreakHabit.streak}d
+            </h2>
+            <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {habitAnalyticsSuite.topStreakHabit.name}
+            </span>
+          </div>
+
+          <div className="dashboard-card" style={{ marginBottom: 0, padding: '14px 16px' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Zap size={14} style={{ color: '#8B5CF6' }} /> Habit-Workout Synergy
+            </span>
+            <h2 style={{ fontSize: '1.8rem', color: '#8B5CF6', marginTop: 6, marginBottom: 2 }}>
+              {habitAnalyticsSuite.synergyScore}%
+            </h2>
+            <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Workout days with 3+ habits</span>
+          </div>
+        </div>
+
+        {/* Habit-Workout Correlation Synergy Insight Banner */}
+        <div className="synergy-banner" style={{
+          backgroundColor: 'rgba(0, 82, 255, 0.06)',
+          border: '1px solid rgba(0, 82, 255, 0.2)',
+          borderRadius: 'var(--border-radius-md)',
+          padding: '12px 16px',
+          marginBottom: 20,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap'
+        }}>
+          <div style={{ fontSize: '1.4rem', flexShrink: 0 }}>⚡</div>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <h4 style={{ margin: 0, fontSize: '0.88rem', color: 'var(--color-text-primary)' }}>
+              Habit-Workout Synergy Insight
+            </h4>
+            <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>
+              {habitAnalyticsSuite.synergyInsight}
+            </p>
+          </div>
+        </div>
+
+        {/* Dual Side-by-Side Charts (Responsive Stack on Mobile) */}
+        <div className="habit-charts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+          {/* Chart 1: Daily Compliance Trend Line Chart */}
+          <div className="dashboard-card" style={{ marginBottom: 0, padding: '16px' }}>
+            <div className="card-header" style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '0.95rem', margin: 0, display: 'inline-flex', alignItems: 'center' }}>
+                <TrendingUp size={16} style={{ marginRight: 6, color: '#10B981' }} />
+                Daily Compliance Trend (%)
+                <MetricTooltip
+                  title="Daily Compliance Trend"
+                  description="Tracks percentage of habits completed on each day across your selected date range."
+                  formula="Daily % = (Completed Habits ÷ Total Habits) × 100%"
+                  position="top"
+                />
+              </h3>
+            </div>
+            <div style={{ height: 240, position: 'relative', width: '100%', minWidth: 0 }}>
+              <Line data={dailyComplianceTrendChartData} options={lineChartOptions} />
+            </div>
+          </div>
+
+          {/* Chart 2: Habit-by-Habit Comparison Bar Chart */}
+          <div className="dashboard-card" style={{ marginBottom: 0, padding: '16px' }}>
+            <div className="card-header" style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '0.95rem', margin: 0, display: 'inline-flex', alignItems: 'center' }}>
+                <BarChart3 size={16} style={{ marginRight: 6, color: '#0052FF' }} />
+                Per-Habit Compliance Comparison
+                <MetricTooltip
+                  title="Habit Comparison Breakdown"
+                  description="Compares compliance percentages across all individual habits over the selected date range."
+                  formula="Habit % = (Total Checks for Habit ÷ Total Days) × 100%"
+                  position="top"
+                />
+              </h3>
+            </div>
+            <div style={{ height: 240, position: 'relative', width: '100%', minWidth: 0 }}>
+              <Bar data={habitComparisonChartData} options={barChartOptions} />
+            </div>
+          </div>
         </div>
       </div>
 

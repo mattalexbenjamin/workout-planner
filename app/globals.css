@@ -1493,6 +1493,34 @@ th.sticky-col-right {
   line-height: 1.3;
 }
 
+/* Habit Analytics Hub Mobile & Desktop Responsiveness */
+.habit-analytics-hub {
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .habit-kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  .habit-charts-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .synergy-banner {
+    padding: 10px 12px !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .habit-kpi-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+
 
 
 
